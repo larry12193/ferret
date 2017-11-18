@@ -1,0 +1,79 @@
+print("Homing... \r")
+setconfig(_MMOD, 1, 1)	'Set motor channel 1 operating mode to 1:Closed Loop Speed
+setconfig(_UVL, 100)	'Set under voltage limit at 10.0V
+setconfig(_EMOD, 1, 18)	'Set encoder channel 1 to be used as feedback for motor channel 1
+setconfig(_DINA, 4, 24)	'Initialize D4 to trigger loading home value with counter value
+setconfig(_DINA, 3, 20) 'Initialize D3 as forward limit switch
+setconfig(_ELL, 1, 0)	'Set encoder low count limit to 0
+setconfig(_ECHOF, 1)	'Disable serial command echo
+
+'Set closed-loop speed PID gains
+setconfig(_KP,1,40)		'Set proportional gain to 4.0
+setconfig(_KI,1,20)		'Set integral gain to 2.0
+setconfig(_KD,1,11)		'Set differential gain to 1.1
+
+'Set closed-loop position PID gains
+'setconfig(_KP,1,150)		'Set proportional gain to 15.0
+'setconfig(_KI,1,60)		'Set integral gain to 6.0
+'setconfig(_KD,1,40)		'Set differential gain to 4.0
+'Set closed-loop position motor speed (RPM)
+'setconfig(_S,1,250)
+
+'Find the home position
+get_home:
+if (getvalue(_DI, 4 ) = 0)
+	'Set channel 1 speed to (CW)
+	setcommand(_G, 1, -250)
+	wait(5)
+	'Run until limit switch engaged
+	goto get_home
+else
+	'Set D4 as reverse limit switch once home is found
+	setconfig(_DINA, 4, 21)
+	'Grab current counter value
+	counter =getvalue(_C, 1)
+	'Command the motor to move to the current counter position
+	setcommand(_P, 1, counter)
+end if
+
+'Find max encoder offset from home
+get_max:
+if (getvalue(_DI, 3) = 0)
+	'Set channel 1 speed (CCW)
+	setcommand(_G, 1, 250)
+	wait(5)
+	'Run until limit switch engaged
+	goto get_max
+else
+	'Save max counter value
+	max =getvalue(_C, 1)
+end if
+
+'Return home to start scanning
+get_start:
+if (getvalue(_DI, 4) = 0)
+	'Set channel 1 speed (CW)
+	setcommand(_G, 1, -250)
+	wait(5)
+	'Run until limit switch engaged
+	goto get_start
+else
+	'Save home encoder count
+	home = getvalue(_C, 1)
+	setcommand(_G, 1, 0)
+end if
+
+print("Finished homing, entering main loop.\r")	
+
+'Main loop of script
+'  Transmits the current encoder value as well as the maximum value found from homing for
+'  calculation of the body-fixed yaw angle
+body:
+counter = getvalue(_C, 1)
+print("&c:", 1)
+print(":", max)
+print(":", counter)
+print("\r")
+wait(20)
+goto body
+

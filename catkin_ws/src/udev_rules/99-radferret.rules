@@ -1,0 +1,3 @@
+SUBSYSTEM=="tty", ATTRS{manufacturer}=="Roboteq", ATTRS{product}=="Motor Controller", MODE="0666", KERNEL=="ttyACM[0-9]*", SYMLINK+="roboteq"
+SUBSYSTEM=="tty", ATTRS{manufacturer}=="Xsens", ATTRS{product}=="MTi-20 VRU", MODE="0666", KERNEL=="ttyUSB[0-9]*",  SYMLINK+="xsens"
+SUBSYSTEM=="tty", ATTRS{manufacturer}=="Arduino LLC", ATTRS{product}=="Arduino Micro", MODE="0666", KERNEL=="ttyACM[0-9]*",  SYMLINK+="arduinoMicro"
