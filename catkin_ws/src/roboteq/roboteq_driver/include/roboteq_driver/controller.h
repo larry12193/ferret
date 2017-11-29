@@ -35,6 +35,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define CLOSED_LOOP_SPEED 0x00
 #define CLOSED_LOOP_POS   0x01
 
+// Ferret MicroBasic data string attributes
+#define NUM_FIELDS  5   // Number of fields (split by ':')
+#define COUNTER_POS 2   // Position of the current encoder count
+#define R_LIM_POS   3   // State of reverse limit switch (home position)
+#define F_LIM_POS   4   // State of forward limit switch
+
 namespace serial {
   class Serial;
 }
@@ -52,6 +58,7 @@ private :
   int baud_;
   bool connected_;
   bool receiving_script_messages_;
+  double cpr_;
   std::string version_;
   serial::Serial *serial_;
   std::stringstream tx_buffer_;
@@ -60,6 +67,8 @@ private :
   ros::NodeHandle nh_;
   ros::Publisher pub_status_;
   ros::Publisher pub_counter_;
+  ros::Publisher pub_ferret_;
+  ros::Publisher pub_home_;
 
   void read();
   void write(std::string);
@@ -67,6 +76,7 @@ private :
   void processStatus(std::string msg);
   void processFeedback(std::string msg);
   void processCounter(std::string str);
+  void processHomed(std::string str);
 
 protected:
   // These data members are the core of the synchronization strategy in this class.
@@ -131,6 +141,7 @@ public :
   void setDIOx(int i) { command << "D1" << i << send; }
   void startScript() { command << "R" << send; }
   void stopScript() { command << "R" << 0 << send; }
+  void restartScript() { command << "R" << 2 << send; }
   void setUserVariable(int var, int val) { command << "VAR" << var << val << send; }
   void setUserBool(int var, bool val) { command << "B" << var << (val ? 1 : 0) << send; }
   bool downloadScript();

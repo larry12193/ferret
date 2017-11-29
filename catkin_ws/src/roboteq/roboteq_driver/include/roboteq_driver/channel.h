@@ -69,7 +69,7 @@ protected:
    */
   static double to_encoder_ticks(double x)
   {
-    return x * 4096 / (2 * M_PI);
+    return x * 1024 / (2 * M_PI);
   }
 
   /**
@@ -81,7 +81,7 @@ protected:
    */
   static double from_encoder_ticks(double x)
   {
-    return x * (2 * M_PI) / 4096;
+    return x * (2 * M_PI) / 1024;
   }
 
   void cmdCallback(const roboteq_msgs::Command&);

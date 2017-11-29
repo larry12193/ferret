@@ -28,6 +28,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "roboteq_msgs/Status.h"
 #include "nav_msgs/Odometry.h"
+#include "roboteq_msgs/FerretRotator.h"
+#include "std_msgs/UInt8.h"
 #include "serial/serial.h"
 
 #include <boost/bind.hpp>
@@ -54,8 +56,12 @@ Controller::Controller(const char *port, int baud)
     version_(""), start_script_attempts_(0), serial_(NULL),
     command("!", this), query("?", this), param("^", this)
 {
-  pub_status_ = nh_.advertise<roboteq_msgs::Status>("status", 1);
+  pub_status_  = nh_.advertise<roboteq_msgs::Status>("status", 1);
   pub_counter_ = nh_.advertise<nav_msgs::Odometry>("odom", 1);
+  pub_home_    = nh_.advertise<std_msgs::UInt8>("home",1);
+  pub_ferret_  = nh_.advertise<roboteq_msgs::FerretRotator>("rotator",100);
+
+  nh_.param<double>("rotator_cpr",cpr_, 377635.24806554);
 }
 
 Controller::~Controller() {
@@ -87,7 +93,7 @@ void Controller::connect() {
       return;
     } else {
       connected_ = false;
-      ROS_INFO("Bad Connection with serial port Error %s",port_);
+      //ROS_INFO("Bad Connection with serial port Error %s",port_);
     }
   }
 
@@ -112,15 +118,18 @@ void Controller::read() {
         processStatus(msg);
       } else if (msg[1] == 'f') {
         processFeedback(msg);
+        // Processes encoder data from driver
       } else if (msg[1] == 'c') {
         processCounter(msg);
+      } else if (msg[1] == 'h' ) {
+        processHomed(msg);
       }
     } else {
       // Unknown other message.
       ROS_WARN_STREAM("Unknown serial message received: " << msg);
     }
   } else {
-    ROS_WARN_NAMED("serial", "Serial::readline() returned no data.");
+    //ROS_WARN_NAMED("serial", "Serial::readline() returned no data.");
   }
 }
 
@@ -135,6 +144,13 @@ void Controller::flush() {
     ROS_WARN_STREAM("Serial write timeout, " << bytes_written << " bytes written of " << tx_buffer_.tellp() << ".");
   }
   tx_buffer_.str("");
+}
+
+void Controller::processHomed(std::string str) {
+    std_msgs::UInt8 msg;
+
+    msg.data = 1;
+    pub_home_.publish(msg);
 }
 
 void Controller::processStatus(std::string str) {
@@ -198,20 +214,28 @@ void Controller::processFeedback(std::string msg) {
 
 void Controller::processCounter(std::string str) {
   nav_msgs::Odometry msg;
-  msg.header.stamp = ros::Time::now();
+  roboteq_msgs::FerretRotator fmsg;
+
+  ros::Time t = ros::Time::now();
+  fmsg.header.stamp  = t;
+  msg.header.stamp   = t;
 
   std::vector<std::string> fields;
   boost::split(fields, str, boost::algorithm::is_any_of(":"));
   try {
-    if (fields.size() != 4) {
+    if (fields.size() != NUM_FIELDS) {
       ROS_WARN("Wrong number of counter fields. Dropping message.");
       return;
     }
 
-    int max_count = boost::lexical_cast<int>(fields[2]);
-    int count = boost::lexical_cast<int>(fields[3]);
+    // Extract limit switch states into messages
+    fmsg.reverse_limit = boost::lexical_cast<int>(fields[R_LIM_POS]);
+    fmsg.forward_limit = boost::lexical_cast<int>(fields[F_LIM_POS]);
+    int count = boost::lexical_cast<int>(fields[COUNTER_POS]);
+    // Fill in raw counter message data
+    fmsg.count = count;
 
-    double roll = -double(count)/double(max_count)*2*PI;
+    double roll = (-double(count)/cpr_)*2*PI;
     double yaw = 0.0;
     double pitch = 0.0;
 
@@ -222,7 +246,7 @@ void Controller::processCounter(std::string str) {
     double t4 = std::cos(pitch * 0.5);
     double t5 = std::sin(pitch * 0.5);
 
-    msg.child_frame_id = "laser";
+    msg.child_frame_id = "rotator";
     msg.pose.pose.orientation.x = t0 * t3 * t4 - t1 * t2 * t5;
     msg.pose.pose.orientation.y = t0 * t2 * t5 + t1 * t3 * t4;
     msg.pose.pose.orientation.z = t1 * t2 * t4 - t0 * t3 * t5;
@@ -233,6 +257,8 @@ void Controller::processCounter(std::string str) {
     return;
   }
 
+  // Publish all messages
+  pub_ferret_.publish(fmsg);
   pub_counter_.publish(msg);
 }
 
@@ -288,13 +314,13 @@ void Controller::setMode(uint8_t mode) {
     this->write("^KD 1 40");
   } else if( mode == CLOSED_LOOP_SPEED ) {
     ROS_DEBUG("Commanding driver enter closed loop speed mode.");
-  
+
     // Set channel 1 to closed loop speed mode
     this->write("^MMOD 1 1");
     // Set closed loop speed mode PID
-    this->write("^KP 1 40");
-    this->write("^KI 1 20");
-    this->write("^KD 1 11");
+    this->write("^KP 1 10");
+    this->write("^KI 1 10");
+    this->write("^KD 1 2");
   } else {
     ROS_WARN("Unable to set controller mode. Mode unknown!");
   }

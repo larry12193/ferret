@@ -35,30 +35,26 @@ net.core.rmem_default=2048576
 
 ## Installation
 
-### Build repository
+### Setup environment
+Clone the repository to the desired directory and add the enviornment variable that points to the main ferret folder. Change the '/path/to/ferret' as needed for your specific setup. The setup.bash source and other internal programmatic operations depend on this enviornment variable being set properly.
 ```
-cd ~
-mkdir -p catkin_ws/src
-cd catkin_ws/src
-catkin_init_workspace
 git clone https://github.com/larry12193/ferret.git
-cd ..
-catkin_make
+echo "export FERRET_PATH=/path/to/ferret" >> ~/.bashrc
+echo "source $FERRET_PATH/catkin_ws/devel/setup.bash"
 ```
 
 ### Install udev rules 
-```\
-cd ~/catkin_ws/udev_rules
+```
+cd catkin_ws/udev_rules
 sudo chmod +x install-udev.sh
 sudo ./install-udev.sh
 ```
 
-Please reboot device for udev rules to take effect.
+Please reboot for udev rules to take effect.
 
 ## To Run
 ```
-cd ~/catkin_ws
-source devel/setup.bash
+cd catkin_ws
 roslaunch radferret radferret_init.launch
 rosrun radferret radferret_scan_once
 ```

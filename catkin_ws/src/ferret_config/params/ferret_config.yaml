@@ -1,0 +1,37 @@
+# Ferret high level configuation file
+
+# ===================================================================
+# General Parameters
+# ===================================================================
+
+pi: 3.141592653589
+twoPi: 6.28318530718
+
+# ===================================================================
+# Rotator Parameters
+# ===================================================================
+
+# Quadrature encoder counts per revolution (256 lines)
+enc_cpr: 1024
+
+# Numerator of gearbox absolute reduction (84:1)
+gear_num: 185193
+
+# Denominator of gearbox absolute reduction (84:1)
+gear_den: 2197
+
+# Gearbox ratio
+gear_ratio: 84.293582157
+
+# External ratio
+ext_ratio: 4.375
+
+# Counter per single revolution of rotator
+# cpr = enc_cpr*ext_ratio*gear_ratio
+rotator_cpr: 377635.24806554
+
+# Scanning speed (RPM) of rotator mechanism
+scan_speed: 0.5
+
+# Service speed (RPM) of rotator mechanism
+service_speed: 2.0

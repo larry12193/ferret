@@ -1,0 +1,70 @@
+<?xml version="1.0" ?>
+
+<launch>
+
+    <!-- Top level launch directory -->
+    <arg name="launch_dir"      value="$(env FERRET_PATH)/launch"/>
+    <!-- Logger configuration -->
+    <arg name="log_state"       value="false"/>
+
+    <!-- Topic Configuration -->
+    <arg name="exec_start_topic"    value="/executive/start"/>
+    <arg name="exec_resp_topic"     value="/executive/response"/>
+    <arg name="exec_cmd_topic"      value="/executive/command"/>
+    <arg name="status_topic"        value="/node/status"/>
+
+    <!-- Port/IP Configuration -->
+    <arg name="sick_tim_ip"         value="192.168.4.2"/>
+    <arg name="xsens_port"          value="/dev/xsens"/>
+    <arg name="roboteq_port"        value="/dev/roboteq"/>
+
+    <!-- Frame Configuration -->
+    <arg name="sick_tim_frame_id"   value="laser"/>
+    <arg name="imu_frame_id"        value="imu"/>
+
+    <!-- Loop Rate Configuration -->
+    <arg name="executive_rate"      value="10"/>
+
+    <!-- Load in high level config file -->
+    <rosparam command="load" file="$(find ferret_config)/params/ferret_config.yaml"/>
+
+    <!-- Start the transform broadcasters -->
+    <include file="$(arg launch_dir)/individual_launch/transforms.launch">
+      <arg name="frame_id_imu"   value="$(arg imu_frame_id)"/>
+      <arg name="frame_id_laser" value="$(arg sick_tim_frame_id)"/>
+    </include>
+
+    <!-- Launch roboteq motor control -->
+    <include file="$(find roboteq_driver)/launch/roboteq_ferret.launch">
+        <arg name="port"       value="$(arg roboteq_port)"/>
+    </include>
+
+    <!-- Launch SICK  -->
+    <include file="$(arg launch_dir)/individual_launch/sick_tim571.launch">
+        <arg name="ip"         value="$(arg sick_tim_ip)"/>
+        <arg name="frame_id"   value="$(arg sick_tim_frame_id)"/>
+    </include>
+
+    <!-- Launch IMU -->
+    <include file="$(find xsens_driver)/launch/xsens_driver.launch">
+        <arg name="device"     value="$(arg xsens_port)"/>
+        <arg name="baudrate"              value="115200"/>
+        <arg name="timeout"               value="0.002"/>
+        <arg name="frame_id"              value="$(arg imu_frame_id)"/>
+        <arg name="frame_local"           value="ENU"/>
+        <arg name="no_rotation_duration"  value="0"/>
+    </include>
+
+    <!-- Launch executive node -->
+    <node name="executive_node" pkg="executive" type="executive_node" output="screen">
+      <param name="logging_enabled"    value="$(arg log_state)"/>
+      <param name="exec_rate"          value="$(arg executive_rate)"/>
+
+      <param name="exec_resp_topic"    value="$(arg exec_resp_topic)"/>
+      <param name="exec_cmd_topic"     value="$(arg exec_cmd_topic)"/>
+      <param name="exec_start_topic"   value="$(arg exec_start_topic)"/>
+      <param name="status_topic"       value="$(arg status_topic)"/>
+    </node>
+
+
+</launch>

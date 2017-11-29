@@ -1,0 +1,68 @@
+<?xml version="1.0" ?>
+
+<launch>
+
+  <node name="rosbag_record_data" pkg="rosbag" type="record" respawn="true"
+        args="-o /media/data/ferret --lz4
+                  /UvOrWhite
+                  /bus_voltage
+                  /buttons
+                  /cmd_vel
+                  /diagnostics
+                  /disk/encoder
+                  /disk/mode
+                  /disk_index
+                  /executive_comments
+                  /idler/encoders
+                  /ima_0_pose
+                  /ima_1_pose
+                  /ima_2_pose
+                  /ima_3_pose
+                  /ima_data
+                  /imu/data
+                  /imu/diagnostics
+                  /imu/time_reference
+                  /left/uv/camera_info
+                  /left/uv/image_raw
+                  /left/uv/image_raw/compressed
+                  /left/white/camera_info
+                  /left/white/image_raw
+                  /left/white/image_raw/compressed
+                  /motor/currents
+                  /motor/encoders
+                  /motor/errors
+                  /motor/mode
+                  /motor/set_velocity
+                  /od1_0/values
+                  /od1_0_pose
+                  /od1_1/values
+                  /od1_1_pose
+                  /odom/drive1
+                  /odom/drive2
+                  /odom/drive3
+                  /odom/idler1
+                  /odom/idler2
+                  /odom/idler3
+                  /odometry/filtered
+                  /panel/input
+                  /panel/output
+                  /right/uv/camera_info
+                  /right/uv/image_raw
+                  /right/uv/image_raw/compressed
+                  /right/white/camera_info
+                  /right/white/image_raw
+                  /right/white/image_raw/compressed
+                  /rosout
+                  /rosout_agg
+                  /rplidar/scan
+                  /rplidar/scan/filtered
+                  /rplidar/scan/filtered/min_diam
+                  /set_pose
+                  /start_images
+                  /stereo/parameter_descriptions
+                  /stereo/parameter_updates
+                  /tf
+                  /executive/response
+                  /node/status"/>
+
+</launch>

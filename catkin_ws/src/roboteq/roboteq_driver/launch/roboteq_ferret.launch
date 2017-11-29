@@ -1,6 +1,6 @@
 <launch>
   <arg name="port" default="/dev/roboteq" />
-  <node pkg="roboteq_driver" type="roboteq_driver_radferret_node" name="roboteq" output="screen">
+  <node pkg="roboteq_driver" type="roboteq_driver_ferret_node" name="roboteq" output="screen">
     <param name="port" value="$(arg port)" />
     <param name="value" value="115200" />
   </node>
