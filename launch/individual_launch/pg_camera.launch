@@ -1,0 +1,9 @@
+<launch>
+
+    <!-- Launch pointgrey base camera driver -->
+    <include file="$(find pointgrey_camera_driver)/launch/camera.launch"/>
+
+    <!-- Launch exposure dynamic reconfigure client server -->
+    <node pkg="executive" type="cam_config.py" name="cam_config" output="screen"/>
+    
+</launch>
