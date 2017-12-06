@@ -57,7 +57,6 @@ Controller::Controller(const char *port, int baud)
     command("!", this), query("?", this), param("^", this)
 {
   pub_status_  = nh_.advertise<roboteq_msgs::Status>("status", 1);
-  pub_counter_ = nh_.advertise<nav_msgs::Odometry>("odom", 1);
   pub_home_    = nh_.advertise<std_msgs::UInt8>("home",1);
   pub_ferret_  = nh_.advertise<roboteq_msgs::FerretRotator>("rotator",100);
 
@@ -235,22 +234,22 @@ void Controller::processCounter(std::string str) {
     // Fill in raw counter message data
     fmsg.count = count;
 
-    double roll = (-double(count)/cpr_)*2*PI;
-    double yaw = 0.0;
-    double pitch = 0.0;
-
-    double t0 = std::cos(yaw * 0.5);
-    double t1 = std::sin(yaw * 0.5);
-    double t2 = std::cos(roll * 0.5);
-    double t3 = std::sin(roll * 0.5);
-    double t4 = std::cos(pitch * 0.5);
-    double t5 = std::sin(pitch * 0.5);
-
-    msg.child_frame_id = "rotator";
-    msg.pose.pose.orientation.x = t0 * t3 * t4 - t1 * t2 * t5;
-    msg.pose.pose.orientation.y = t0 * t2 * t5 + t1 * t3 * t4;
-    msg.pose.pose.orientation.z = t1 * t2 * t4 - t0 * t3 * t5;
-    msg.pose.pose.orientation.w = t0 * t2 * t4 + t1 * t3 * t5;
+    // double roll = (-double(count)/cpr_)*2*PI;
+    // double yaw = 0.0;
+    // double pitch = 0.0;
+    //
+    // double t0 = std::cos(yaw * 0.5);
+    // double t1 = std::sin(yaw * 0.5);
+    // double t2 = std::cos(roll * 0.5);
+    // double t3 = std::sin(roll * 0.5);
+    // double t4 = std::cos(pitch * 0.5);
+    // double t5 = std::sin(pitch * 0.5);
+    //
+    // msg.child_frame_id = "rotator";
+    // msg.pose.pose.orientation.x = t0 * t3 * t4 - t1 * t2 * t5;
+    // msg.pose.pose.orientation.y = t0 * t2 * t5 + t1 * t3 * t4;
+    // msg.pose.pose.orientation.z = t1 * t2 * t4 - t0 * t3 * t5;
+    // msg.pose.pose.orientation.w = t0 * t2 * t4 + t1 * t3 * t5;
 
   } catch (std::bad_cast& e) {
     ROS_WARN("Failure parsing status data. Dropping message.");
@@ -259,7 +258,6 @@ void Controller::processCounter(std::string str) {
 
   // Publish all messages
   pub_ferret_.publish(fmsg);
-  pub_counter_.publish(msg);
 }
 
 bool Controller::downloadScript() {
@@ -304,14 +302,16 @@ bool Controller::downloadScript() {
 
 void Controller::setMode(uint8_t mode) {
   if( mode == CLOSED_LOOP_POS ) {
-    ROS_DEBUG("Commanding driver enter closed loop position mode.");
+    ROS_DEBUG("Commanding driver enter closed loop count position mode.");
 
-    // Set channel 1 to closed loop position mode
-    this->write("^MMOD 1 2");
+    // Set channel 1 to closed loop count position mode
+    this->write("^MMOD 1 3");
+    // Set position movement speed to 77 rpm (~4 rpm at rotator)
+    this->write("^MVEL 1 140");
     // Set closed loop position mode PID
-    this->write("^KP 1 150");
-    this->write("^KI 1 60");
-    this->write("^KD 1 40");
+    this->write("^KP 1 10");
+    this->write("^KI 1 10");
+    this->write("^KD 1 2");
   } else if( mode == CLOSED_LOOP_SPEED ) {
     ROS_DEBUG("Commanding driver enter closed loop speed mode.");
 

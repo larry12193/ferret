@@ -1,3 +1,0 @@
-<launch>
-  <node name="radferret_tf_broadcaster" pkg="radferret" type="radferret_tf_broadcaster"/>
-</launch>

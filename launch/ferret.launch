@@ -4,8 +4,10 @@
 
     <!-- Top level launch directory -->
     <arg name="launch_dir"      value="$(env FERRET_PATH)/launch"/>
+
     <!-- Logger configuration -->
-    <arg name="log_state"       value="false"/>
+    <arg name="log_state"       value="False"/>
+    <arg name="log_dir"         value="/home/lawrence"/>
 
     <!-- Topic Configuration -->
     <arg name="exec_start_topic"    value="/executive/start"/>
@@ -14,9 +16,18 @@
     <arg name="status_topic"        value="/node/status"/>
 
     <!-- Port/IP Configuration -->
+    <arg name="pointgrey_ip"        value="192.167.5.2"/>
     <arg name="sick_tim_ip"         value="192.168.4.2"/>
     <arg name="xsens_port"          value="/dev/xsens"/>
     <arg name="roboteq_port"        value="/dev/roboteq"/>
+    <arg name="arduino_port"        value="/dev/led_control"/>
+
+    <!-- Camera Configuration (dynamic reconfigure) -->
+    <arg name="set_exposure"        value="True"/>
+    <arg name="set_brigtness"       value="False"/>
+    <arg name="set_gain"            value="False"/>
+    <arg name="set_shutter"         value="False"/>
+    <arg name="frame_rate"          value="7.0"/>
 
     <!-- Frame Configuration -->
     <arg name="sick_tim_frame_id"   value="laser"/>
@@ -24,9 +35,23 @@
 
     <!-- Loop Rate Configuration -->
     <arg name="executive_rate"      value="10"/>
+    <arg name="dyn_reconfig_rate"   value="20"/>
 
     <!-- Load in high level config file -->
     <rosparam command="load" file="$(find ferret_config)/params/ferret_config.yaml"/>
+
+    <!-- Launch pointgrey base camera driver -->
+    <include file="$(find pointgrey_camera_driver)/launch/camera.launch"/>
+
+    <!-- Launch exposure dynamic reconfigure client server -->
+    <node pkg="executive" type="cam_config.py" name="cam_config" output="screen">
+        <param name="allow_set_exposure"   value="$(arg set_exposure)"/>
+        <param name="allow_set_brightness" value="$(arg set_brigtness)"/>
+        <param name="allow_set_gain"       value="$(arg set_gain)"/>
+        <param name="allow_set_shutter"    value="$(arg set_shutter)"/>
+        <param name="frame_rate"           value="$(arg frame_rate)"/>
+        <param name="loop_rate"            value="$(arg dyn_reconfig_rate)"/>
+    </node>
 
     <!-- Start the transform broadcasters -->
     <include file="$(arg launch_dir)/individual_launch/transforms.launch">
@@ -46,18 +71,19 @@
     </include>
 
     <!-- Launch IMU -->
-    <include file="$(find xsens_driver)/launch/xsens_driver.launch">
+    <!-- <include file="$(find xsens_driver)/launch/xsens_driver.launch">
         <arg name="device"     value="$(arg xsens_port)"/>
         <arg name="baudrate"              value="115200"/>
         <arg name="timeout"               value="0.002"/>
         <arg name="frame_id"              value="$(arg imu_frame_id)"/>
         <arg name="frame_local"           value="ENU"/>
         <arg name="no_rotation_duration"  value="0"/>
-    </include>
+    </include> -->
 
     <!-- Launch executive node -->
     <node name="executive_node" pkg="executive" type="executive_node" output="screen">
       <param name="logging_enabled"    value="$(arg log_state)"/>
+      <param name="log_dir"            value="$(arg log_dir)"/>
       <param name="exec_rate"          value="$(arg executive_rate)"/>
 
       <param name="exec_resp_topic"    value="$(arg exec_resp_topic)"/>
@@ -66,5 +92,7 @@
       <param name="status_topic"       value="$(arg status_topic)"/>
     </node>
 
+    <!-- Launch HDR image node -->
+    <node name="hdr_node" pkg="executive" type="hdr_node" output="screen"/>
 
 </launch>

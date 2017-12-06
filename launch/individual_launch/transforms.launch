@@ -9,7 +9,7 @@
     <!-- Static transoform from laser@centerline to rotator base -->
     <node pkg="tf" type="static_transform_publisher" name="laser_to_rotator" args="0 0 -0.32693 0 0 0 rotator_static_link centerline_at_laser 100" />
 
-    <!-- Static tranform from rotator_static_link to rotating linkage -->
-    <node pkg="tf" type="static_transform_publisher" name="rotator_static" args="0 0 0 0 0 0 rotator_static_link rotator_link 100" />
+    <!-- Tranform from rotator_static_link to rotating linkage -->
+    <node pkg="ferret" type="ferret_tf_broadcaster" name="ferret_tf_broadcaster" output="screen"/>
 
 </launch>

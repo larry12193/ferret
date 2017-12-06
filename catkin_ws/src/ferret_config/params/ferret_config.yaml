@@ -35,3 +35,19 @@ scan_speed: 0.5
 
 # Service speed (RPM) of rotator mechanism
 service_speed: 2.0
+
+# HDR image angular offseet (radians)
+hdr_offset: 0.261799167
+
+# ===================================================================
+# Node Status Parameters
+# ===================================================================
+lidar_node_id: 0
+camera_node_id: 1
+imu_node_id: 2
+hdr_node_id: 3
+dyn_config_id: 4
+
+hdr_start_id: 10
+hdr_end_id: 11
+config_set_id: 12

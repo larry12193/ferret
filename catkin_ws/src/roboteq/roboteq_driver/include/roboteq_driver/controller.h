@@ -66,7 +66,6 @@ private :
 
   ros::NodeHandle nh_;
   ros::Publisher pub_status_;
-  ros::Publisher pub_counter_;
   ros::Publisher pub_ferret_;
   ros::Publisher pub_home_;
 
