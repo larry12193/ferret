@@ -25,11 +25,6 @@ catkin_package(
 #  DEPENDS system_lib
 )
 
-add_service_files(
-  FILES
-  Hdr.srv
- )
-
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
