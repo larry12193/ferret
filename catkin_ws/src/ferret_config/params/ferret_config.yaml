@@ -37,7 +37,7 @@ scan_speed: 0.5
 service_speed: 2.0
 
 # HDR image angular offseet (radians)
-hdr_offset: 0.261799167
+hdr_offset: 0.523598333 # 30 degrees
 
 # ===================================================================
 # Node Status Parameters

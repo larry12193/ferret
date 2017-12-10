@@ -306,8 +306,8 @@ void Controller::setMode(uint8_t mode) {
 
     // Set channel 1 to closed loop count position mode
     this->write("^MMOD 1 3");
-    // Set position movement speed to 77 rpm (~4 rpm at rotator)
-    this->write("^MVEL 1 140");
+    // Set position movement speed to 368 rpm (~1 rpm at rotator)
+    this->write("^MVEL 1 368");
     // Set closed loop position mode PID
     this->write("^KP 1 10");
     this->write("^KI 1 10");

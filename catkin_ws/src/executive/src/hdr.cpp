@@ -35,6 +35,8 @@ void execRespCallback(const std_msgs::UInt8::ConstPtr& msg ) {
 void nodeStatusCallback( const std_msgs::UInt8::ConstPtr& msg ) {
     if( msg->data == CONFIG_SET_ID ) {
         dyn_config_ack = true;
+    } else if( msg->data == HDR_END_ID ) {
+        start_hdr = false;
     }
 }
 
@@ -91,7 +93,8 @@ int main(int argc, char **argv) {
     // Define node status message
     std_msgs::UInt8 status_msg;
 
-    ros::Rate loop_rate(10);
+    ros::Rate lrate(10);
+
     int loop_count = 0;
 
     while( ros::ok() ) {
@@ -103,13 +106,12 @@ int main(int argc, char **argv) {
             pub_status.publish(status_msg);
 
             // Reset start flag for future runs
-            start_hdr = false;
             firstExposure = true;
+
             // Run for all alloable exposures in range
-            ROS_INFO("Min exp (%f) Max exp (%f) cur exp (%f)", min_exp, max_exp, current_exp);
             while( current_exp <= max_exp ) {
-                ROS_INFO("Setting exp: %f", current_exp);
-                // Send new exposure
+                ROS_DEBUG("Setting exp: %f", current_exp);
+                //Send new exposure
                 exp_msg.data = current_exp;
                 pub_exp.publish(exp_msg);
                 dyn_config_ack = false;
@@ -117,13 +119,13 @@ int main(int argc, char **argv) {
                 // Wait for ack of expsure configuration
                 while( !dyn_config_ack ) {
                     ros::spinOnce();
-                    loop_rate.sleep();
+                    lrate.sleep();
                     if( loop_count >= 100 ) {
                         ROS_WARN("Failed to recieve ack from dynamic configure in time, resending setting...");
                         pub_exp.publish(exp_msg);
                         loop_count = 0;
                     }
-                    loop_count++;
+                    ++loop_count;
                 }
 
                 // Delay longer for first exposure to let the image settle
@@ -131,13 +133,12 @@ int main(int argc, char **argv) {
                     firstExposure = false;
                     for( int i = 0; i < 50; i++ ) {
                         ros::spinOnce();
-                        loop_rate.sleep();
+                        lrate.sleep();
                     }
                 }
 
                 // Normal inter exposure delay
-                ros::Rate lrate(10);
-                for( int i = 0; i < 50; i++ ) {
+                for( int i = 0; i < 40; i++ ) {
                     ros::spinOnce();
                     lrate.sleep();
                 }
@@ -150,7 +151,7 @@ int main(int argc, char **argv) {
                 // Wait for executive to respond from image trigger
                 while( !exec_ack ) {
                     ros::spinOnce();
-                    loop_rate.sleep();
+                    lrate.sleep();
 
                     if( loop_count >= 100 ) {
                         ROS_WARN("Failed to recieve ack from executive in time, resending image trigger...");
@@ -163,7 +164,7 @@ int main(int argc, char **argv) {
                 // Increment exposure
                 current_exp += d_exp;
                 ros::spinOnce();
-                loop_rate.sleep();
+                lrate.sleep();
             } // while( cur_exp)
 
             // Send status to executive that sequence is over
@@ -172,9 +173,9 @@ int main(int argc, char **argv) {
 
             // Reset exposure setting
             current_exp = min_exp;
-
+            start_hdr = false;
         } // if( start_hdr )
         ros::spinOnce();
-        loop_rate.sleep();
+        lrate.sleep();
     }
 }

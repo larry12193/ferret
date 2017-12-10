@@ -71,14 +71,14 @@
     </include>
 
     <!-- Launch IMU -->
-    <!-- <include file="$(find xsens_driver)/launch/xsens_driver.launch">
-        <arg name="device"     value="$(arg xsens_port)"/>
+    <include file="$(find xsens_driver)/launch/xsens_driver.launch">
+        <arg name="device"                value="$(arg xsens_port)"/>
         <arg name="baudrate"              value="115200"/>
         <arg name="timeout"               value="0.002"/>
         <arg name="frame_id"              value="$(arg imu_frame_id)"/>
         <arg name="frame_local"           value="ENU"/>
         <arg name="no_rotation_duration"  value="0"/>
-    </include> -->
+    </include>
 
     <!-- Launch executive node -->
     <node name="executive_node" pkg="executive" type="executive_node" output="screen">

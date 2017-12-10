@@ -9,6 +9,7 @@
  ******************************************************************************/
 
 #include <ros/ros.h>
+ #include <ros/console.h>
 #include <std_msgs/UInt8.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Float32.h>
@@ -31,9 +32,9 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <boost/filesystem.hpp>
 
-volatile uint8_t LIDAR_READY;	    // State of LIDAR node
-volatile uint8_t CAMERA_READY;	    // State of camera node
-volatile uint8_t IMU_READY;		    // State of IMU node
+volatile uint8_t LIDAR_READY;       // State of LIDAR node
+volatile uint8_t CAMERA_READY;      // State of camera node
+volatile uint8_t IMU_READY;         // State of IMU node
 volatile uint8_t HOMING_COMPLETE;   // State of motor homing sequence
 volatile uint8_t FORWARD_LIMIT;     // State of forward limit switch
 volatile uint8_t REVERSE_LIMIT;     // State of reverse limit switch
@@ -51,9 +52,9 @@ volatile uint8_t  IMAGE_TRIGGER;
 
 bool LOGGING_ENABLED;           // Whether logging is enabled during run
 
-int LIDAR_NODE_ID;			    // LIDAR node id number
-int CAMERA_NODE_ID;			    // Camera node id number
-int IMU_NODE_ID;			    // IMU node id number
+int LIDAR_NODE_ID;              // LIDAR node id number
+int CAMERA_NODE_ID;             // Camera node id number
+int IMU_NODE_ID;                // IMU node id number
 int HDR_NODE_ID;                // HDR node id number
 int DYN_NODE_ID;                // Dynamic reconfigure node ID
 int HDR_START_ID;               // HDR sequence start ID
@@ -70,6 +71,7 @@ uint8_t current_command = 0;    // Currnet command from user
 uint8_t last_command;           // Last user command
 
 uint8_t logging = 0;            // State of rosbag logger
+uint8_t logging_backgroung = 0; // State of background logger
 
 std::string root_launch_dir;    // Path to ferret launch directory
 
@@ -81,12 +83,9 @@ std::string hdr_position_dir;   // Single position of HDR images subdirectory
 
 double twoPi;
 
-#define CW  -1
-#define CCW  1
-
-ros::Publisher exec_resp_pub;     // Publisher for executive response
-ros::Publisher roboteq_mode_pub;  // Publisher for setting roboteq mode
-ros::Publisher roboteq_setpoint_pub; // Publisher for setpoint
+ros::Publisher exec_resp_pub;           // Publisher for executive response
+ros::Publisher roboteq_mode_pub;        // Publisher for setting roboteq mode
+ros::Publisher roboteq_setpoint_pub;    // Publisher for setpoint
 ros::Publisher roboteq_script_restart;  // Publisher for restarting roboteq script
 
 // Define states that the robot can be in
@@ -225,7 +224,7 @@ void publish_comment(const std::string& comment)
 
 */
 uint8_t nodesReady() {
-	return (LIDAR_READY &&
+    return (LIDAR_READY &&
             CAMERA_READY &&
             IMU_READY &&
             DYN_CONFIG_READY);
@@ -238,12 +237,12 @@ void nodeReadyCallback(const std_msgs::UInt8::ConstPtr& msg) {
 
     // Process which node is ready
     if( msg->data == LIDAR_NODE_ID ) {
-		LIDAR_READY = 1;
-	} else if( msg->data == CAMERA_NODE_ID ) {
-		CAMERA_READY = 1;
-	} else if( msg->data == IMU_NODE_ID ) {
-		IMU_READY = 1;
-	} else if( msg->data == DYN_NODE_ID) {
+        LIDAR_READY = 1;
+    } else if( msg->data == CAMERA_NODE_ID ) {
+        CAMERA_READY = 1;
+    } else if( msg->data == IMU_NODE_ID ) {
+        IMU_READY = 1;
+    } else if( msg->data == DYN_NODE_ID) {
         DYN_CONFIG_READY = 1;
     } else if( msg->data == HDR_START_ID ) {
         HDR_STARTED = 1;
@@ -261,21 +260,22 @@ void nodeReadyCallback(const std_msgs::UInt8::ConstPtr& msg) {
 void processCommands() {
     switch( current_command ) {
         case STOP_COMMAND:
-            publish_comment("Command: Recieved stop command.");
+            current_state = estop;
+            ROS_DEBUG("Command: Recieved stop command.");
             break;
         case START_SCAN_COMMAND:
-            publish_comment("Command: Recieved start scan command.");
+            ROS_DEBUG("Command: Recieved start scan command.");
             current_state = start_scan;
             break;
         case START_HDR_COMMAND:
-            publish_comment("Command: Recieved start HDR command.");
+            ROS_DEBUG("Command: Recieved start HDR command.");
             current_state = hdr_init;
             break;
         case STATUS_COMMAND:
-            publish_comment("Command: Recieved status command.");
+            ROS_DEBUG("Command: Recieved status command.");
             break;
         default:
-            publish_comment("Command: Recieved unknown command.");
+            ROS_DEBUG("Command: Recieved unknown command.");
             break;
     }
 }
@@ -283,19 +283,27 @@ void processCommands() {
 /* @brief Starts recording the rosbag with the appropriate topics
 
  */
-void start_bag() {
+void start_bag(uint8_t TYPE) {
     if( !logging && LOGGING_ENABLED ) {
-        ROS_INFO("Starting logger...");
-        // Change working directory to individual launch file directory
-        chdir(root_launch_dir.c_str());
+        publish_comment("Starting logger...");
+
+        std::string sysCall;
 
         // Construct system call string, running new instance in a detached screen terminal
-        std::string sysCall = "tmux new -s record_bag -d 'roslaunch ~/ferret/launch/ferret_logger.launch'";
+        if( TYPE == BAG_TYPE_SCAN ) {
+            // Change working directory to scan directory to save bag there
+            chdir(scan_directory.c_str());
+            sysCall = "tmux new -s record_bag -d 'roslaunch " + root_launch_dir + "/ferret_scan_logger.launch'";
+        } else if( TYPE == BAG_TYPE_HDR ) {
+            // Change working directory to hdr directory to save bag there
+            chdir(hdr_directory.c_str());
+            sysCall = "tmux new -s record_bag -d 'roslaunch " + root_launch_dir + "/ferret_hdr_logger.launch'";
+        }
 
         // Make system call to run command
         system(sysCall.c_str());
 
-        // Set logging flag
+        // Set logging flags
         logging = 1;
     }
 }
@@ -316,16 +324,19 @@ void stop_bag() {
 
  */
 void start_background_bag() {
-    if( !logging && LOGGING_ENABLED ) {
-        ROS_INFO("Starting background logger...");
+    if( !logging_background && LOGGING_ENABLED ) {
+        publish_comment("Starting background logger...");
         // Change working directory to individual launch file directory
-        chdir(root_launch_dir.c_str());
+        chdir(dataset_directory.c_str());
 
         // Construct system call string, running new instance in a detached screen terminal
         std::string sysCall = "tmux new -s background_logger -d 'roslaunch " + root_launch_dir + "/background_logger.launch'";
 
         // Make system call to run command
         system(sysCall.c_str());
+
+        // Set background logger flag
+        logging_backgroung = 1;
     }
 }
 
@@ -334,9 +345,12 @@ void start_background_bag() {
  */
 void stop_background_bag() {
     // Check if logging is currently running and enabled
-    if( logging && LOGGING_ENABLED ) {
+    if( logging_background && LOGGING_ENABLED ) {
         publish_comment("Stopping background logger...");
         system("tmux kill-session -t background_logger ");
+
+        // Reset baground logger flag
+        logging_backgroung = 1;
     }
 }
 
@@ -359,10 +373,10 @@ void initializeDirectories()
 
     // Create data directory
     boost::filesystem::path dir(dataset_directory.c_str());
-	if(!boost::filesystem::create_directory(dir)) {
+    if(!boost::filesystem::create_directory(dir)) {
         ROS_ERROR("Unable to create data base directory at %s", dataset_directory.c_str());
-	}
-    publish_comment("Writing run data to " + dataset_directory);
+    }
+    ROS_DEBUG("Writing run data to " + dataset_directory);
 }
 
 /* @brief Initializes the scan directory that the current scan data will be stored in
@@ -384,9 +398,9 @@ void initializeNewScanDirectory()
 
     // Create scan directory
     boost::filesystem::path dir(scan_directory.c_str());
-	if(!boost::filesystem::create_directory(dir)) {
+    if(!boost::filesystem::create_directory(dir)) {
         ROS_ERROR("Unable to create scan directory at %s", dataset_directory.c_str());
-	}
+    }
     publish_comment("Writing scan data to " + scan_directory);
 }
 
@@ -409,10 +423,10 @@ void initializeNewHDRDirectory()
 
     // Create scan directory
     boost::filesystem::path dir(hdr_directory.c_str());
-	if(!boost::filesystem::create_directory(dir)) {
+    if(!boost::filesystem::create_directory(dir)) {
         ROS_ERROR("Unable to create scan directory at %s", hdr_directory.c_str());
-	}
-    publish_comment("Writing HDR data to " + hdr_directory);
+    }
+    ROS_DEBUG("Writing HDR data to " + hdr_directory);
 }
 
 /* @brief Initializes the scan directory that the current scan data will be stored in
@@ -436,9 +450,9 @@ void initializeNewHDRPositionDirectory()
 
     // Create scan directory
     boost::filesystem::path dir(hdr_position_dir.c_str());
-	if(!boost::filesystem::create_directory(dir)) {
+    if(!boost::filesystem::create_directory(dir)) {
         ROS_ERROR("Unable to create hdr position directory at %s", hdr_position_dir.c_str());
-	}
+    }
 }
 
 /* @breif Callback for image trigger callback
@@ -465,7 +479,7 @@ void imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
         whole = hdr_position_dir + name;
 
         // Write image to file
-        ROS_INFO("Writing image to %s", whole.c_str());
+        ROS_DEBUG("Writing image to %s", whole.c_str());
         imwrite( hdr_position_dir + name, cv_bridge::toCvShare(msg, "bgr8")->image);
         // Increment image number
         IMAGE_NUMBER++;
@@ -479,36 +493,37 @@ void imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
 
 int main(int argc, char **argv) {
 
-	ros::init(argc, argv, "executive_node");
-	ros::NodeHandle n;
-	ros::NodeHandle n_private("~");
+    ros::init(argc, argv, "executive_node");
+    ros::NodeHandle n;
+    ros::NodeHandle n_private("~");
 
-	int rate;
+
+    int rate;
     double hdr_angle_offset;
-	std::string exec_start_topic, exec_resp_topic, exec_command_topic;
+    std::string exec_start_topic, exec_resp_topic, exec_command_topic;
     std::string status_topic, img_trig_topic;
 
     // Configure directory strings
     n_private.param<std::string>("log_dir", base_directory, "");
     initializeDirectories();
 
-	n.param<int>("lidar_node_id",  LIDAR_NODE_ID,  0);
-	n.param<int>("camera_node_id", CAMERA_NODE_ID, 1);
-	n.param<int>("imu_node_id",    IMU_NODE_ID,    2);
+    // Start the background information logger
+    start_background_bag();
+
+    n.param<int>("lidar_node_id",  LIDAR_NODE_ID,  0);
+    n.param<int>("camera_node_id", CAMERA_NODE_ID, 1);
+    n.param<int>("imu_node_id",    IMU_NODE_ID,    2);
     n.param<int>("hdr_node_id",    HDR_NODE_ID,    3);
     n.param<int>("dyn_config_id",  DYN_NODE_ID,    4);
     n.param<int>("hdr_start_id",   HDR_START_ID,   10);
     n.param<int>("hdr_end_id",     HDR_END_ID,   11);
     n.param<int>("config_set_id",  CONFIG_SET_ID,  12);
-
-    // Rotator speeds (RPM)
     n.param<double>("scan_speed",    SCAN_SPEED,    0.5);
     n.param<double>("service_speed", SERVICE_SPEED, 2.0);
     n.param<double>("gear_ratio",    GEAR_RATIO,    0);
     n.param<double>("ext_ratio",     EXT_RATIO,     0);
     n.param<double>("rotator_cpr",   CPR,           0);
     n.param<double>("hdr_offset",    hdr_angle_offset, 0);
-    ROS_INFO("HDR_OFFSET: %f", hdr_angle_offset);
     n.param<double>("twoPi", twoPi, 0);
 
     n_private.param<int>("exec_rate",        rate,            10);
@@ -521,7 +536,7 @@ int main(int argc, char **argv) {
     n_private.param<std::string>("status_topic",     status_topic,       "/node/status");
     n_private.param<std::string>("img_trig_topic",   img_trig_topic,     "/executive/img_trigger");
 
-	ros::Subscriber node_status_sub = n.subscribe(status_topic,       10,  nodeReadyCallback);
+    ros::Subscriber node_status_sub = n.subscribe(status_topic,       10,  nodeReadyCallback);
     ros::Subscriber command_sub     = n.subscribe(exec_command_topic, 1,   commandCallback);
     ros::Subscriber rotator_sub     = n.subscribe("/roboteq/rotator", 100, rotatorStatusCallback);
     ros::Subscriber homing_sub      = n.subscribe("/roboteq/home",    1,   homingCallback);
@@ -531,24 +546,26 @@ int main(int argc, char **argv) {
     ros::Publisher start_pub = n.advertise<std_msgs::UInt8>(exec_start_topic, 10);
     ros::Publisher pub_rate  = n.advertise<std_msgs::Float32>("camera/frame_rate",1);
 
-    roboteq_mode_pub     = n.advertise<std_msgs::UInt8>("/roboteq/mode", 1);
-    exec_resp_pub        = n.advertise<std_msgs::UInt8>(exec_resp_topic, 100);
-    roboteq_setpoint_pub = n.advertise<roboteq_msgs::Command>("/roboteq/cmd",1);
+    roboteq_mode_pub       = n.advertise<std_msgs::UInt8>("/roboteq/mode", 1);
+    exec_resp_pub          = n.advertise<std_msgs::UInt8>(exec_resp_topic, 100);
+    roboteq_setpoint_pub   = n.advertise<roboteq_msgs::Command>("/roboteq/cmd",1);
     roboteq_script_restart = n.advertise<std_msgs::UInt8>("/roboteq/restartScript",1);
 
     // Set loop rate
-	ros::Rate loop_rate(10);
+    ros::Rate loop_rate(10);
 
-	// Wait for all nodes to boot into ros::ok() loops and homing to complete
-	// while( !nodesReady() && !HOMING_COMPLETE ) {
-	// 	ros::spinOnce();
-	// 	loop_rate.sleep();
-	// }
+    std_msgs::UInt8 start_msg;
 
-	// Enter main loop
-	while( ros::ok() ) {
-		// check for new messages
-		ros::spinOnce();
+    // Wait for all nodes to boot into ros::ok() loops and homing to complete
+    // while( !nodesReady() && !HOMING_COMPLETE ) {
+    //     ros::spinOnce();
+    //     loop_rate.sleep();
+    // }
+
+    // Enter main loop
+    while( ros::ok() ) {
+        // check for new messages
+        ros::spinOnce();
 
         // Process any commands
         if( current_command != last_command ) {
@@ -556,22 +573,22 @@ int main(int argc, char **argv) {
             processCommands();
         }
 
-		// Act according to current state
-		switch( current_state) {
+        // Act according to current state
+        switch( current_state) {
 
-			// Waiting for command
-			case waiting:
-				if( current_state != prior_state ) {
-					publish_comment("State: waiting");
-				}
+            // Waiting for command
+            case waiting:
+                if( current_state != prior_state ) {
+                    publish_comment("State: waiting");
+                }
 
-				prior_state = waiting;
-				break;
+                prior_state = waiting;
+                break;
 
-			// Completed an action, wrap up and reinitialize
-			case done:
-				if( current_state != prior_state ) {
-					publish_comment("State: done");
+            // Completed an action, wrap up and reinitialize
+            case done:
+                if( current_state != prior_state ) {
+                    publish_comment("State: done");
 
                     // Stop data recording
                     if( LOGGING_ENABLED ) {
@@ -582,7 +599,7 @@ int main(int argc, char **argv) {
                     publish_comment("Resetting roator to home position...");
                     // Command motor to rotate towards home position
                     setRotationSpeed(SERVICE_SPEED, CW);
-				}
+                }
 
                 // Stop rotation at home position
                 if( REVERSE_LIMIT ) {
@@ -591,8 +608,8 @@ int main(int argc, char **argv) {
                     current_state = waiting;
                 }
 
-				prior_state = done;
-				break;
+                prior_state = done;
+                break;
 
             // Stops all action
             case estop:
@@ -604,8 +621,8 @@ int main(int argc, char **argv) {
                 setRotationSpeed(0, CW);
 
                 prior_state = estop;
-				current_state = waiting;
-				break;
+                current_state = waiting;
+                break;
 
             // Initializes system for scanning
             case start_scan:
@@ -637,15 +654,15 @@ int main(int argc, char **argv) {
                     // Stop motion
                     setRotationSpeed(0, CW);
                     // Wait for motion to settle
-                    ros::Duration(2).sleep();
+                    spinFor(1);
                     // Start logging
                     if( LOGGING_ENABLED ) {
-                        start_bag();
+                        start_bag(BAG_TYPE_SCAN);
                     }
                     // Wait before starting scan
-                    ros::Duration(2).sleep();
+                    spinFor(1);
                     // Start scan rotation
-                    ROS_INFO("Setting scan speed, %f", CCW*SCAN_SPEED);
+                    ROS_DEBUG("Setting scan speed, %f", CCW*SCAN_SPEED);
                     setRotationSpeed(SCAN_SPEED, CCW);
 
                     // Command scaning speed
@@ -655,25 +672,30 @@ int main(int argc, char **argv) {
                 prior_state = start_scan;
                 break;
 
-			// Monitor 360 degree lidar scan
-			case scanning:
-				if( current_state != prior_state ) {
-					publish_comment("State: scanning");
-				}
+            // Monitor 360 degree lidar scan
+            case scanning:
+                if( current_state != prior_state ) {
+                    publish_comment("State: scanning");
+                }
 
                 if( FORWARD_LIMIT ) {
                     // Stop scan rotation
+                    ROS_DEBUG("Stopping at end of scan.");
                     setRotationSpeed(0, CW);
                     current_state = done;
+
+                    if( LOGGING_ENABLED ) {
+                        stop_bag();
+                    }
                 }
 
-				prior_state = scanning;
-				break;
+                prior_state = scanning;
+                break;
 
-			// Initiate sequence of HDR images at different angular offsets
-			case hdr_init:
-				if( current_state != prior_state ) {
-					publish_comment("State: hdr_init");
+            // Initiate sequence of HDR images at different angular offsets
+            case hdr_init:
+                if( current_state != prior_state ) {
+                    publish_comment("State: hdr_init");
                     // Initialize state variables
                     HDR_STARTED = 0;
                     HDR_ENDED = 0;
@@ -689,7 +711,7 @@ int main(int argc, char **argv) {
                     std_msgs::Float32 frate_msg;
                     frate_msg.data = 10.0;
                     pub_rate.publish(frate_msg);
-				}
+                }
 
                 // Ensure the hdr image sequence is initiated from the reverse limit
                 if( !REVERSE_LIMIT && current_motion != clockwise ) {
@@ -700,12 +722,19 @@ int main(int argc, char **argv) {
                     // Stop motion
                     setRotationSpeed(0, CW);
                     // Wait for motion to settle
-                    ros::Duration(2).sleep();
+                    spinFor(1);
+                    // Start logging
+                    if( LOGGING_ENABLED ) {
+                        start_bag(BAG_TYPE_HDR);
+                    }
+                    // Set position mode
+                    setAngularPosition(TARGET_POSITION);
+                    spinFor(2);
                     current_state = hdr_sequence;
                 }
 
-				prior_state = hdr_init;
-				break;
+                prior_state = hdr_init;
+                break;
 
             case hdr_sequence:
                 if( current_state != prior_state ) {
@@ -715,24 +744,24 @@ int main(int argc, char **argv) {
                 // Run while not at the endstop
                 if( CUR_COUNTER < CPR && !FORWARD_LIMIT ) {
                     // Only take images when at the desired postion
-                    if( abs(DIFF_COUNTER) == 0 ) {
+                    if( abs(DIFF_COUNTER) <= 1 ) {
                         // Start HDR image sequence at position if not done so
                         if( !HDR_STARTED ) {
+                            ROS_DEBUG("HDR sequence started");
                             // Transmit hdr start command
-                            std_msgs::UInt8 start_msg;
                             start_msg.data = HDR_START_ID;
                             start_pub.publish(start_msg);
 
                         // Handle end of image sequence
                         } else if( HDR_ENDED ) {
-                            ROS_INFO("HDR_ENDED");
+                            ROS_DEBUG("HDR sequence ended");
                             // Move to next position
                             TARGET_POSITION += hdr_angle_offset;
-                            ROS_INFO("Setting position to %f", TARGET_POSITION);
+                            ROS_DEBUG("Setting position to %f", TARGET_POSITION);
                             setAngularPosition(TARGET_POSITION);
 
                             // Sleep for a second to ensure movment has commenced before continuing
-                            while( DIFF_COUNTER == 0 ) {
+                            while( DIFF_COUNTER <= 1 ) {
                                 spinFor(1);
                             }
 
@@ -744,7 +773,14 @@ int main(int argc, char **argv) {
                         }
                     }
                 } else {
+                    start_msg.data = HDR_END_ID;
+                    start_pub.publish(start_msg);
                     current_state = done;
+
+                    // Stop logging
+                    if( LOGGING_ENABLED ) {
+                        stop_bag();
+                    }
                 }
 
                 prior_state = hdr_sequence;
@@ -760,7 +796,7 @@ int main(int argc, char **argv) {
 
                 if( HOMING_COMPLETE ) {
                     if( entering_state == start_scan ) {
-                        publish_comment("Homing complete, resuming scan");
+                        ROS_INFO("Homing complete, resuming scan");
                         current_state = start_scan;
                     }
                 }
@@ -769,9 +805,9 @@ int main(int argc, char **argv) {
                 break;
 
 
-		} // swtich( current_state )
+        } // swtich( current_state )
 
-		ros::spinOnce();
-		loop_rate.sleep();
-	} // while( ros::ok() )
+        ros::spinOnce();
+        loop_rate.sleep();
+    } // while( ros::ok() )
 }
