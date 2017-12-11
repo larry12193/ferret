@@ -36,14 +36,15 @@ net.core.rmem_default=2048576
 ## Installation
 
 ### Setup environment
-Clone the repository to the desired directory and add the enviornment variable that points to the main ferret folder. Change the '/path/to/ferret' as needed for your specific setup. The setup.bash source and other internal programmatic operations depend on this enviornment variable being set properly.
+Clone the repository to the desired directory and add the enviornment variable that points to the main ferret folder. Change the '/path/to/ferret' as needed for your specific setup. Then add in the location of where data should be saved to by replacing '/path/to/data/storage'. The setup.bash source and other internal programmatic operations depend on these enviornment variables being set properly.
 ```
 git clone https://github.com/larry12193/ferret.git
 echo "export FERRET_PATH=/path/to/ferret" >> ~/.bashrc
+echo "export FERRET_LOG_DIR=/path/to/data/storage" >> ~/.bashrc
 echo "source $FERRET_PATH/catkin_ws/devel/setup.bash"
 ```
 
-### Install udev rules 
+### Install udev rules
 ```
 cd catkin_ws/udev_rules
 sudo chmod +x install-udev.sh
@@ -61,10 +62,8 @@ rosrun radferret radferret_scan_once
 
 ## Roboteq MicroBasic Scripting
 
-The MicroBasic scripting launguage reference for this motor controller can be found at 
+The MicroBasic scripting launguage reference for this motor controller can be found at
 + https://www.roboteq.com/index.php/docman/motor-controllers-documents-and-files/documentation/user-manual/272-roboteq-controllers-user-manual-v17/file
 
 To interface directly with Roboteq SDC2130 motor controller, install the Roborun+ PC utility from (note this is windows only)
 + http://www.roboteq.com/index.php/support/downloads
-
-

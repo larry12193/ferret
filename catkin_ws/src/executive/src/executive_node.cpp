@@ -71,7 +71,7 @@ uint8_t current_command = 0;    // Currnet command from user
 uint8_t last_command;           // Last user command
 
 uint8_t logging = 0;            // State of rosbag logger
-uint8_t logging_backgroung = 0; // State of background logger
+uint8_t logging_background = 0; // State of background logger
 
 std::string root_launch_dir;    // Path to ferret launch directory
 
@@ -336,7 +336,7 @@ void start_background_bag() {
         system(sysCall.c_str());
 
         // Set background logger flag
-        logging_backgroung = 1;
+        logging_background = 1;
     }
 }
 
@@ -350,7 +350,7 @@ void stop_background_bag() {
         system("tmux kill-session -t background_logger ");
 
         // Reset baground logger flag
-        logging_backgroung = 1;
+        logging_background = 1;
     }
 }
 
@@ -376,7 +376,7 @@ void initializeDirectories()
     if(!boost::filesystem::create_directory(dir)) {
         ROS_ERROR("Unable to create data base directory at %s", dataset_directory.c_str());
     }
-    ROS_DEBUG("Writing run data to " + dataset_directory);
+    ROS_DEBUG("Writing run data to %s",dataset_directory.c_str());
 }
 
 /* @brief Initializes the scan directory that the current scan data will be stored in
@@ -426,7 +426,7 @@ void initializeNewHDRDirectory()
     if(!boost::filesystem::create_directory(dir)) {
         ROS_ERROR("Unable to create scan directory at %s", hdr_directory.c_str());
     }
-    ROS_DEBUG("Writing HDR data to " + hdr_directory);
+    ROS_DEBUG("Writing HDR data to %s", hdr_directory.c_str());
 }
 
 /* @brief Initializes the scan directory that the current scan data will be stored in

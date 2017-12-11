@@ -1,3 +1,12 @@
+/*******************************************************************************
+ * ferret_tf_broadcaster.cpp - Publishes rotator transform from encoder feedback
+ *
+ * Carnegie Mellon University
+ * Author: Lawrence Papincak
+ *
+ *
+ ******************************************************************************/
+
 #include <ros/ros.h>
 #include <tf/tf.h>
 

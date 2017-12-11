@@ -31,5 +31,9 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
 )
+
 add_executable(${PROJECT_NAME}_tf_broadcaster src/ferret_tf_broadcast.cpp)
 target_link_libraries(${PROJECT_NAME}_tf_broadcaster ${catkin_LIBRARIES})
+
+add_executable(led_control_node src/led_control.cpp)
+target_link_libraries(led_control_node ${catkin_LIBRARIES})

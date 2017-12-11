@@ -3,24 +3,25 @@
 <launch>
 
     <!-- Top level launch directory -->
-    <arg name="launch_dir"      value="$(env FERRET_PATH)/launch"/>
+    <arg name="launch_dir"          value="$(env FERRET_PATH)/launch"/>
 
     <!-- Logger configuration -->
-    <arg name="log_state"       value="False"/>
-    <arg name="log_dir"         value="/home/lawrence"/>
+    <arg name="log_state"           value="False"/>
+    <arg name="log_dir"             value="$(env FERRET_LOG_DIR)"/>
 
     <!-- Topic Configuration -->
     <arg name="exec_start_topic"    value="/executive/start"/>
     <arg name="exec_resp_topic"     value="/executive/response"/>
     <arg name="exec_cmd_topic"      value="/executive/command"/>
     <arg name="status_topic"        value="/node/status"/>
+    <arg name="pwm_set_topic"       value="/led_pwm"/>
 
     <!-- Port/IP Configuration -->
     <arg name="pointgrey_ip"        value="192.167.5.2"/>
     <arg name="sick_tim_ip"         value="192.168.4.2"/>
     <arg name="xsens_port"          value="/dev/xsens"/>
     <arg name="roboteq_port"        value="/dev/roboteq"/>
-    <arg name="arduino_port"        value="/dev/led_control"/>
+    <arg name="arduino_port"        value="/dev/arduinoMicro"/>
 
     <!-- Camera Configuration (dynamic reconfigure) -->
     <arg name="set_exposure"        value="True"/>
@@ -42,6 +43,12 @@
 
     <!-- Launch pointgrey base camera driver -->
     <include file="$(find pointgrey_camera_driver)/launch/camera.launch"/>
+
+    <!-- Launch LED control node -->
+    <node pkg="ferret" type="led_control_node" name="led_control_node" output="screen">
+        <param name="pwm_set_topic"        value="$(arg pwm_set_topic)"/>
+        <param name="port"                 value="$(arg arduino_port)"/>
+    </node>
 
     <!-- Launch exposure dynamic reconfigure client server -->
     <node pkg="executive" type="cam_config.py" name="cam_config" output="screen">
