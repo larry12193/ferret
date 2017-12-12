@@ -16,8 +16,8 @@
 #define BAG_TYPE_SCAN 0
 #define BAG_TYPE_HDR  1
 
-#define LED_OFF 255
-#define LED_ON  0
+#define LED_OFF 0
+#define LED_ON  255
 
 #define STOP_COMMAND        0   // Command ID to stop all processes
 #define START_SCAN_COMMAND  1   // Command ID to start LIDAR scan

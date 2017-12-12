@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
             ss.str("");
             ss.clear();
             ss << (int)pwmDutyCycle;
-            data = ss.str() + "\n";
+            data = ss.str();
             ROS_INFO("Writing - %s",data.c_str());
             write(fd,data.c_str(),strlen(data.c_str()));
         }

@@ -8,13 +8,13 @@
  ******************************************************************************/
 
 // PWM duty cycle for LED control recieved from serial port
-int dutycycle;
+int dutyCycle;
 
 void setup() {
     // Setup serial port
     Serial.begin(115200);
     // Set control pins as outputs
-    pinMode(12,OUTPUT);
+    pinMode(11,OUTPUT);
     pinMode(10,OUTPUT);
     // Initialize the lights as off
     analogWrite(10,255);
@@ -22,16 +22,10 @@ void setup() {
 }
 
 void loop() {
-    while( Serial.available() > 0 ) {
 
-        // Look for valid integer
-        dutycycle = Serial.parseInt();
-
-        // Look for newline
-        if( Serial.read() == '\n' ) {
-            // Write PWM value to LED control pints
-            analogWrite(10,dutycycle);
-            analogWrite(11,dutycycle);
-        }
+    if( Serial.available() > 0 ) {
+       dutyCycle = Serial.parseInt();
+       analogWrite(10,255-dutyCycle);
+       analogWrite(11,255-dutyCycle);
     }
 }
