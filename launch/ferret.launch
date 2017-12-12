@@ -6,7 +6,7 @@
     <arg name="launch_dir"          value="$(env FERRET_PATH)/launch"/>
 
     <!-- Logger configuration -->
-    <arg name="log_state"           value="False"/>
+    <arg name="log_state"           value="True"/>
     <arg name="log_dir"             value="$(env FERRET_LOG_DIR)"/>
 
     <!-- Topic Configuration -->
@@ -91,12 +91,14 @@
     <node name="executive_node" pkg="executive" type="executive_node" output="screen">
       <param name="logging_enabled"    value="$(arg log_state)"/>
       <param name="log_dir"            value="$(arg log_dir)"/>
+      <param name="root_launch_dir"    value="$(arg launch_dir)"/>
       <param name="exec_rate"          value="$(arg executive_rate)"/>
 
       <param name="exec_resp_topic"    value="$(arg exec_resp_topic)"/>
       <param name="exec_cmd_topic"     value="$(arg exec_cmd_topic)"/>
       <param name="exec_start_topic"   value="$(arg exec_start_topic)"/>
       <param name="status_topic"       value="$(arg status_topic)"/>
+      <param name="pwm_set_topic"      value="$(arg pwm_set_topic)"/>
     </node>
 
     <!-- Launch HDR image node -->

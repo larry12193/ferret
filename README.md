@@ -5,20 +5,17 @@
 + Ubuntu Mate 16.04 for Odroid xu4 (https://odroid.in/ubuntu_16.04lts)
 + ROS Kinetic full-desktop install
 + Catkin Tools
-+ ROS serial package (http://wiki.ros.org/rosserial)
-+ ROS laser_proc package (http://wiki.ros.org/laser_proc)
 
 ## Configuration
 
 ### Networking
-ODROID:    192.168.1.59
+ODROID:    10.42.0.10
 SICK TIM:  192.168.4.2
 PointGrey: 192.168.5.2
 
 ### Dependencies
 ```
-sudo apt-get install ros-kinetic-serial
-sudo apt-get install ros-kinetic-laser-proc
+sudo apt-get install tmux
 ```
 
 ### Network Socket
@@ -42,6 +39,15 @@ git clone https://github.com/larry12193/ferret.git
 echo "export FERRET_PATH=/path/to/ferret" >> ~/.bashrc
 echo "export FERRET_LOG_DIR=/path/to/data/storage" >> ~/.bashrc
 echo "source $FERRET_PATH/catkin_ws/devel/setup.bash"
+echo ROS_IP=10.42.0.10
+```
+
+### Install SDK dependencies
+For the camera to work without relying on an internet connection to fetch the camera SDK, enter the ferret/dependencies folder and run the install script for the ARM based FlyCapture SDK. Make sure the script is executable and run it as sudo. It will prompt you for some inputs.
+```
+cd dependencies
+sudo chmod +x install-flycap.sh
+sudo ./install-flycap.sh
 ```
 
 ### Install udev rules
@@ -54,11 +60,14 @@ sudo ./install-udev.sh
 Please reboot for udev rules to take effect.
 
 ## To Run
+Launch the top level launch file to initialize all subsystems
 ```
-cd catkin_ws
-roslaunch radferret radferret_init.launch
-rosrun radferret radferret_scan_once
+roslaunch $FERRET_PATH/launch/ferret.launch
 ```
+The executive accepts commands published to /executive/command to run HDR image sequences and LIDAR scans with video capture. 
+STOP  = 0  (Stops all motion and returns to idle)
+LIDAR = 1  (Runs single 360 degree scan)
+HDR   = 2  (Runs single 360 degree HDR image sequence)
 
 ## Roboteq MicroBasic Scripting
 
@@ -67,3 +76,5 @@ The MicroBasic scripting launguage reference for this motor controller can be fo
 
 To interface directly with Roboteq SDC2130 motor controller, install the Roborun+ PC utility from (note this is windows only)
 + http://www.roboteq.com/index.php/support/downloads
+
+The script onboard performs a homing sequence on boot and then starts writing counter and endstop state data to the serial port that the higher level software uses to make decisions with. It will also accept a command to re-home the device if the executive is restarted without restarting the entire robot via a power cycle. The script can be found at catkin_ws/ferret_script.mbs, see for more details.

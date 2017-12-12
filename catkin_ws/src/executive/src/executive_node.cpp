@@ -9,7 +9,7 @@
  ******************************************************************************/
 
 #include <ros/ros.h>
- #include <ros/console.h>
+#include <ros/console.h>
 #include <std_msgs/UInt8.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Float32.h>
@@ -291,13 +291,9 @@ void start_bag(uint8_t TYPE) {
 
         // Construct system call string, running new instance in a detached screen terminal
         if( TYPE == BAG_TYPE_SCAN ) {
-            // Change working directory to scan directory to save bag there
-            chdir(scan_directory.c_str());
-            sysCall = "tmux new -s record_bag -d 'roslaunch " + root_launch_dir + "/ferret_scan_logger.launch'";
+            sysCall = "tmux new -s record_bag -d 'roslaunch " + root_launch_dir + "/individual_launch/ferret_scan_logger.launch dir:=" + scan_directory + "'";
         } else if( TYPE == BAG_TYPE_HDR ) {
-            // Change working directory to hdr directory to save bag there
-            chdir(hdr_directory.c_str());
-            sysCall = "tmux new -s record_bag -d 'roslaunch " + root_launch_dir + "/ferret_hdr_logger.launch'";
+            sysCall = "tmux new -s record_bag -d 'roslaunch " + root_launch_dir + "/individual_launch/ferret_hdr_logger.launch dir:=" + hdr_directory + "'";
         }
 
         // Make system call to run command
@@ -326,11 +322,9 @@ void stop_bag() {
 void start_background_bag() {
     if( !logging_background && LOGGING_ENABLED ) {
         publish_comment("Starting background logger...");
-        // Change working directory to individual launch file directory
-        chdir(dataset_directory.c_str());
 
         // Construct system call string, running new instance in a detached screen terminal
-        std::string sysCall = "tmux new -s background_logger -d 'roslaunch " + root_launch_dir + "/background_logger.launch'";
+        std::string sysCall = "tmux new -s background_logger -d 'roslaunch " + root_launch_dir + "/individual_launch/ferret_background_logger.launch dir:=" + dataset_directory + "'";
 
         // Make system call to run command
         system(sysCall.c_str());
@@ -501,14 +495,11 @@ int main(int argc, char **argv) {
     int rate;
     double hdr_angle_offset;
     std::string exec_start_topic, exec_resp_topic, exec_command_topic;
-    std::string status_topic, img_trig_topic;
+    std::string status_topic, img_trig_topic, pwm_set_topic;
 
     // Configure directory strings
     n_private.param<std::string>("log_dir", base_directory, "");
     initializeDirectories();
-
-    // Start the background information logger
-    start_background_bag();
 
     n.param<int>("lidar_node_id",  LIDAR_NODE_ID,  0);
     n.param<int>("camera_node_id", CAMERA_NODE_ID, 1);
@@ -529,12 +520,13 @@ int main(int argc, char **argv) {
     n_private.param<int>("exec_rate",        rate,            10);
     n_private.param<bool>("enable_logging",  LOGGING_ENABLED, true);
     n_private.param<std::string>("log_dir",          base_directory,     "");
-    n_private.param<std::string>("launch_dir",       root_launch_dir,    "~/ferret");
+    n_private.param<std::string>("launch_dir",       root_launch_dir,    "~/ferret/launch");
     n_private.param<std::string>("exec_start_topic", exec_start_topic,   "/executive/start");
     n_private.param<std::string>("exec_resp_topic",  exec_resp_topic,    "/executive/response");
     n_private.param<std::string>("exec_cmd_topic",   exec_command_topic, "/executive/command");
     n_private.param<std::string>("status_topic",     status_topic,       "/node/status");
     n_private.param<std::string>("img_trig_topic",   img_trig_topic,     "/executive/img_trigger");
+    n_private.param<std::string>("pwm_set_topic",    pwm_set_topic,      "/led_pwm");
 
     ros::Subscriber node_status_sub = n.subscribe(status_topic,       10,  nodeReadyCallback);
     ros::Subscriber command_sub     = n.subscribe(exec_command_topic, 1,   commandCallback);
@@ -545,16 +537,24 @@ int main(int argc, char **argv) {
 
     ros::Publisher start_pub = n.advertise<std_msgs::UInt8>(exec_start_topic, 10);
     ros::Publisher pub_rate  = n.advertise<std_msgs::Float32>("camera/frame_rate",1);
+    ros::Publisher pwm_pub   = n.advertise<std_msgs::UInt8>(pwm_set_topic,1);
 
     roboteq_mode_pub       = n.advertise<std_msgs::UInt8>("/roboteq/mode", 1);
     exec_resp_pub          = n.advertise<std_msgs::UInt8>(exec_resp_topic, 100);
     roboteq_setpoint_pub   = n.advertise<roboteq_msgs::Command>("/roboteq/cmd",1);
     roboteq_script_restart = n.advertise<std_msgs::UInt8>("/roboteq/restartScript",1);
 
+    // Start background logger
+    logging = 0;
+    logging_background = 0;
+    start_background_bag();
+
+
     // Set loop rate
     ros::Rate loop_rate(10);
 
     std_msgs::UInt8 start_msg;
+    std_msgs::UInt8 pwm_msg;
 
     // Wait for all nodes to boot into ros::ok() loops and homing to complete
     // while( !nodesReady() && !HOMING_COMPLETE ) {
@@ -594,7 +594,10 @@ int main(int argc, char **argv) {
                     if( LOGGING_ENABLED ) {
                         stop_bag();
                     }
-
+    
+                    // Make sure LEDs are off
+                    pwm_msg.data = LED_OFF;
+                    pwm_pub.publish(pwm_msg);
 
                     publish_comment("Resetting roator to home position...");
                     // Command motor to rotate towards home position
@@ -619,6 +622,10 @@ int main(int argc, char **argv) {
 
                 // Stop all motion
                 setRotationSpeed(0, CW);
+
+                // Make sure LEDs are off
+                pwm_msg.data = LED_OFF;
+                pwm_pub.publish(pwm_msg);
 
                 prior_state = estop;
                 current_state = waiting;
@@ -752,9 +759,18 @@ int main(int argc, char **argv) {
                             start_msg.data = HDR_START_ID;
                             start_pub.publish(start_msg);
 
+                            // Make sure LEDs are on
+                            pwm_msg.data = LED_ON;
+                            pwm_pub.publish(pwm_msg);
+
                         // Handle end of image sequence
                         } else if( HDR_ENDED ) {
                             ROS_DEBUG("HDR sequence ended");
+
+                            // Make sure LEDs are off
+                            pwm_msg.data = LED_OFF;
+                            pwm_pub.publish(pwm_msg);
+
                             // Move to next position
                             TARGET_POSITION += hdr_angle_offset;
                             ROS_DEBUG("Setting position to %f", TARGET_POSITION);

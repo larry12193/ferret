@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
     ros::XMLRPCManager::instance()->unbind("shutdown");
     ros::XMLRPCManager::instance()->bind("shutdown",shutdownCallback);
 
-    std::string pwm_set_topic, port;
+    std::string pwm_set_topic, port, data;
 
     n_private.param<std::string>("pwm_set_topic", pwm_set_topic, "/led_pwm");
     n_private.param<std::string>("arduino_port", port, "/dev/arduinoMicro");
@@ -111,15 +111,24 @@ int main(int argc, char **argv) {
         ros::Duration(5).sleep();
     }
 
-    char buf[8];
+    //char buf[8];
+    ros::Rate lrate(20);
+    std::ostringstream ss;
 
     while( ros::ok() && !shutdown_request ) {
         if( setPwm ) {
             setPwm = false;
-            memset(buf,0,sizeof(buf));
-            sprintf(buf,"%d\n",pwmDutyCycle);
-            write(fd,buf,sizeof(buf));
+            //memset(buf,0,sizeof(buf));
+            //sprintf(buf,"%d\n",pwmDutyCycle);
+            //write(fd,buf,sizeof(buf));
+            ss.str("");
+            ss.clear();
+            ss << (int)pwmDutyCycle;
+            data = ss.str() + "\n";
+            ROS_INFO("Writing - %s",data.c_str());
+            write(fd,data.c_str(),strlen(data.c_str()));
         }
+	lrate.sleep();
     }
 
     // Stop asynchronous spinner
