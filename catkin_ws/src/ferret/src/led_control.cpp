@@ -75,52 +75,40 @@ int main(int argc, char **argv) {
 
     ros::Subscriber pwm_sub = n.subscribe<std_msgs::UInt8>(pwm_set_topic,1,ledControlCallback);
 
-    ros::AsyncSpinner spinner(1);
-    spinner.start();
-
     shutdown_request = 0;
     bool arduinoConnected = false;
     // Define port settings struct
     struct termios tty;
     int fd, flag;
 
-    while( !arduinoConnected ) {
-        // Open File Descriptor
-        fd = open(port.c_str(), O_RDWR | O_NONBLOCK | O_NDELAY );
+    fd = open(port.c_str(), O_RDWR | O_NONBLOCK | O_NDELAY );
 
-        if( fd < 0 ) {
-            ROS_ERROR("Could not connect to led controller, trying again in 5s...");
-            arduinoConnected = false;
-        } else {
-            // Setting other Port Stuff
-            tty.c_lflag = 0;        // Input modes
-            tty.c_oflag = 0;        // Output modes
-            tty.c_iflag = 0;        // Control modes
-            tty.c_cflag = 0;        // Local modes
-            tty.c_cc[VMIN]  = 0;    // Read a minimum of zero bytes at a time
-            tty.c_cc[VTIME] = 1;    // 0.1s timeout
-            tty.c_cflag = CS8 | CREAD;
-            cfsetospeed(&tty, B115200);
+    if( fd < 0 ) {
+        ROS_ERROR("Could not connect to led controller.");
+        return -1;
+    } else {
+        // Setting other Port Stuff
+        tty.c_lflag = 0;        // Input modes
+        tty.c_oflag = 0;        // Output modes
+        tty.c_iflag = 0;        // Control modes
+        tty.c_cflag = 0;        // Local modes
+        tty.c_cc[VMIN]  = 0;    // Read a minimum of zero bytes at a time
+        tty.c_cc[VTIME] = 1;    // 0.1s timeout
+        tty.c_cflag = CS8 | CREAD;
+        cfsetospeed(&tty, B115200);
 
-            // Push settings to port
-            flag = tcsetattr(fd, TCSANOW, &tty);
-            fcntl(fd, F_SETFL, 0);
-
-            arduinoConnected = true;
-        }
-        ros::Duration(5).sleep();
+        // Push settings to port
+        flag = tcsetattr(fd, TCSANOW, &tty);
+        fcntl(fd, F_SETFL, 0);
     }
 
     //char buf[8];
-    ros::Rate lrate(20);
+    ros::Rate lrate(10);
     std::ostringstream ss;
 
     while( ros::ok() && !shutdown_request ) {
         if( setPwm ) {
             setPwm = false;
-            //memset(buf,0,sizeof(buf));
-            //sprintf(buf,"%d\n",pwmDutyCycle);
-            //write(fd,buf,sizeof(buf));
             ss.str("");
             ss.clear();
             ss << (int)pwmDutyCycle;
@@ -128,11 +116,9 @@ int main(int argc, char **argv) {
             ROS_INFO("Writing - %s",data.c_str());
             write(fd,data.c_str(),strlen(data.c_str()));
         }
-	lrate.sleep();
+        lrate.sleep();
+        ros::spinOnce();
     }
-
-    // Stop asynchronous spinner
-    spinner.stop();
 
     // Close serial port if its open
     if( fd > 0 ) {
