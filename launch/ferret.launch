@@ -45,10 +45,10 @@
     <include file="$(find pointgrey_camera_driver)/launch/camera.launch"/>
 
     <!-- Launch LED control node -->
-    <node pkg="ferret" type="led_control_node" name="led_control_node" output="screen">
+    <!-- <node pkg="ferret" type="led_control_node" name="led_control_node" output="screen">
         <param name="pwm_set_topic"        value="$(arg pwm_set_topic)"/>
         <param name="port"                 value="$(arg arduino_port)"/>
-    </node>
+    </node> -->
 
     <!-- Launch exposure dynamic reconfigure client server -->
     <node pkg="executive" type="cam_config.py" name="cam_config" output="screen">

@@ -27,6 +27,6 @@
                   /camera/gain
                   /camera/brightness
                   /camera/frame_rate
-                  /camera/image_raw"/>
+                  /camera/image_color"/>
 
 </launch>

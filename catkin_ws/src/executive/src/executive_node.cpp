@@ -10,6 +10,7 @@
 
 #include <ros/ros.h>
 #include <ros/console.h>
+#include <ros/xmlrpc_manager.h>
 #include <std_msgs/UInt8.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Float32.h>
@@ -23,12 +24,14 @@
 #include "executive/executive_node.hpp"
 
 #include <inttypes.h>
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
 #include <sstream>
 #include <time.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <boost/filesystem.hpp>
 
@@ -49,6 +52,7 @@ volatile uint16_t POSITION_NUMBER;
 volatile double   TARGET_POSITION;
 volatile uint8_t  IMAGE_NUMBER;
 volatile uint8_t  IMAGE_TRIGGER;
+volatile uint8_t  shutdown_request;
 
 bool LOGGING_ENABLED;           // Whether logging is enabled during run
 
@@ -344,7 +348,7 @@ void stop_background_bag() {
         system("tmux kill-session -t background_logger ");
 
         // Reset baground logger flag
-        logging_background = 1;
+        logging_background = 0;
     }
 }
 
@@ -485,14 +489,42 @@ void imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
     }
 }
 
+/* @brief Replacement SIGINT handler
+ */
+void sigIntHandler(int sig) {
+    shutdown_request = 1;
+}
+
+/* @brief Replacement "shutdown" XMLRPC callback
+ */
+void shutdownCallback(XmlRpc::XmlRpcValue& params, XmlRpc::XmlRpcValue& result) {
+    int nParams = 0;
+    if( params.getType() == XmlRpc::XmlRpcValue::TypeArray ) {
+        nParams = params.size();
+    }
+    if( nParams > 1 ) {
+        std::string reason = params[1];
+        ROS_WARN("Executive shutdown request recieved. Reason [%s]",reason.c_str());
+        shutdown_request = 1;
+    }
+
+    result = ros::xmlrpc::responseInt(1,"",0);
+}
+
 int main(int argc, char **argv) {
 
-    ros::init(argc, argv, "executive_node");
+    ros::init(argc, argv, "executive_node", ros::init_options::NoSigintHandler);
     ros::NodeHandle n;
     ros::NodeHandle n_private("~");
+    signal(SIGINT, sigIntHandler);
 
+    // Override XMLRPC shutdown
+    ros::XMLRPCManager::instance()->unbind("shutdown");
+    ros::XMLRPCManager::instance()->bind("shutdown",shutdownCallback);
+    shutdown_request = 0;
 
     int rate;
+    bool LIGHTS_ON = false;
     double hdr_angle_offset;
     std::string exec_start_topic, exec_resp_topic, exec_command_topic;
     std::string status_topic, img_trig_topic, pwm_set_topic;
@@ -563,7 +595,7 @@ int main(int argc, char **argv) {
     // }
 
     // Enter main loop
-    while( ros::ok() ) {
+    while( ros::ok() && !shutdown_request) {
         // check for new messages
         ros::spinOnce();
 
@@ -635,6 +667,8 @@ int main(int argc, char **argv) {
             case start_scan:
                 if( current_state != prior_state ) {
                     publish_comment("State: start_scan");
+
+                    initializeNewScanDirectory();
 
                     // Change camera frame rate to 20 fps
                     std_msgs::Float32 frate_msg;
@@ -759,9 +793,12 @@ int main(int argc, char **argv) {
                             start_msg.data = HDR_START_ID;
                             start_pub.publish(start_msg);
 
-                            // Make sure LEDs are on
-                            pwm_msg.data = LED_ON;
-                            pwm_pub.publish(pwm_msg);
+                            if( !LIGHTS_ON ) {
+                                // Make sure LEDs are on
+                                pwm_msg.data = LED_ON;
+                                pwm_pub.publish(pwm_msg);
+                                LIGHTS_ON = true;
+                            }
 
                         // Handle end of image sequence
                         } else if( HDR_ENDED ) {
@@ -770,6 +807,7 @@ int main(int argc, char **argv) {
                             // Make sure LEDs are off
                             pwm_msg.data = LED_OFF;
                             pwm_pub.publish(pwm_msg);
+                            LIGHTS_ON = false;
 
                             // Move to next position
                             TARGET_POSITION += hdr_angle_offset;
@@ -826,4 +864,7 @@ int main(int argc, char **argv) {
         ros::spinOnce();
         loop_rate.sleep();
     } // while( ros::ok() )
+
+    std::cout << "Closing background logger..." << std::endl;
+    stop_background_bag();
 }

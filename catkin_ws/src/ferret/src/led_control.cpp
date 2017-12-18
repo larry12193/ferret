@@ -18,6 +18,7 @@
 #include <fcntl.h>      // File control definitions
 #include <errno.h>      // Error number definitions
 #include <termios.h>    // POSIX terminal control definitions
+#include <sys/ioctl.h>
 #include <string.h>
 #include <signal.h>
 #include <fstream>
@@ -76,52 +77,29 @@ int main(int argc, char **argv) {
     ros::Subscriber pwm_sub = n.subscribe<std_msgs::UInt8>(pwm_set_topic,1,ledControlCallback);
 
     shutdown_request = 0;
-    bool arduinoConnected = false;
-    // Define port settings struct
-    struct termios tty;
-    int fd, flag;
 
-    fd = open(port.c_str(), O_RDWR | O_NONBLOCK | O_NDELAY );
-
-    if( fd < 0 ) {
-        ROS_ERROR("Could not connect to led controller.");
-        return -1;
-    } else {
-        // Setting other Port Stuff
-        tty.c_lflag = 0;        // Input modes
-        tty.c_oflag = 0;        // Output modes
-        tty.c_iflag = 0;        // Control modes
-        tty.c_cflag = 0;        // Local modes
-        tty.c_cc[VMIN]  = 0;    // Read a minimum of zero bytes at a time
-        tty.c_cc[VTIME] = 1;    // 0.1s timeout
-        tty.c_cflag = CS8 | CREAD;
-        cfsetospeed(&tty, B115200);
-
-        // Push settings to port
-        flag = tcsetattr(fd, TCSANOW, &tty);
-        fcntl(fd, F_SETFL, 0);
-    }
-
-    //char buf[8];
     ros::Rate lrate(10);
     std::ostringstream ss;
 
     while( ros::ok() && !shutdown_request ) {
         if( setPwm ) {
             setPwm = false;
-            ss.str("");
-            ss.clear();
-            ss << (int)pwmDutyCycle;
-            data = ss.str();
-            ROS_INFO("Writing - %s",data.c_str());
-            write(fd,data.c_str(),strlen(data.c_str()));
+            //ss.str("");
+            //ss.clear();
+            //ss << (int)pwmDutyCycle;
+            //data = ss.str();
+            //ROS_INFO("Writing - %s",data.c_str());
+            //write(fd,data.c_str(),strlen(data.c_str()));
+            if(  pwmDutyCycle == 0 ) {
+                system("echo -ne \"0\" > /dev/arduinoMicro");
+		ROS_INFO("Setting to 0");
+            } else {
+                system("echo -ne \"255\" > /dev/arduinoMicro");
+                ROS_INFO("Setting to 200");
+	    }
         }
         lrate.sleep();
         ros::spinOnce();
     }
 
-    // Close serial port if its open
-    if( fd > 0 ) {
-        close(fd);
-    }
 }
