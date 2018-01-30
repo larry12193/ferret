@@ -4,7 +4,7 @@
   <arg name="dir" default="$(env FERRET_LOG_DIR)"/>
 
   <node name="rosbag_record" pkg="rosbag" type="record" respawn="true"
-        args="-o $(arg dir)/scan_bag --lz4
+        args="-o $(arg dir)/scan_bag
                   /scan
                   /tf
                   /diagnostics

@@ -284,6 +284,8 @@ void processCommands() {
     }
 }
 
+void stop_bag();
+
 /* @brief Starts recording the rosbag with the appropriate topics
 
  */
@@ -291,8 +293,10 @@ void start_bag(uint8_t TYPE) {
     if( !logging && LOGGING_ENABLED ) {
         publish_comment("Starting logger...");
 
-        std::string sysCall;
+        // Make sure no tmux bag logger session is running
+        stop_bag();
 
+        std::string sysCall;
         // Construct system call string, running new instance in a detached screen terminal
         if( TYPE == BAG_TYPE_SCAN ) {
             sysCall = "tmux new -s record_bag -d 'roslaunch " + root_launch_dir + "/individual_launch/ferret_scan_logger.launch dir:=" + scan_directory + "'";
@@ -668,21 +672,22 @@ int main(int argc, char **argv) {
                 if( current_state != prior_state ) {
                     publish_comment("State: start_scan");
 
-                    initializeNewScanDirectory();
+                    // Ensure the device was homed before operation
+                    if( !HOMING_COMPLETE ) {
+                        ROS_WARN("Homing not comleted, initiating homing sequence!");
+                        current_state = homing;
+                        prior_state = start_scan;
+                        entering_state = start_scan;
+                        break;
+                    } else {
+                        // Create new scan directory to save the data in
+                        initializeNewScanDirectory();
+                    }
 
                     // Change camera frame rate to 20 fps
                     std_msgs::Float32 frate_msg;
                     frate_msg.data = 20.0;
                     pub_rate.publish(frate_msg);
-                }
-
-                // Ensure the homing sequence completed successfully
-                if( !HOMING_COMPLETE ) {
-                    ROS_WARN("Homing not completed, initiating homing sequence");
-                    current_state = homing;
-                    prior_state = start_scan;
-                    entering_state = start_scan;
-                    break;
                 }
 
                 // Ensure the scan is initiated from the reverse limit

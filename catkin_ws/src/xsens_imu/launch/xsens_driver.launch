@@ -1,6 +1,6 @@
 <launch>
 
-    <arg name="device"      defualt="/dev/xsens"/>
+    <arg name="device"      default="/dev/xsens"/>
     <arg name="baudrate"    default="0"     doc="baudrate of the IMU"/>
     <arg name="timeout"     default="0.002" doc="timeout for the IMU communication"/>
     <arg name="frame_id"    default="/imu"  doc="frame id of the IMU"/>
