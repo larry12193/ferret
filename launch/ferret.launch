@@ -7,7 +7,7 @@
 
     <!-- Logger configuration -->
     <arg name="log_state"           value="True"/>
-    <arg name="log_dir"             value="$(env FERRET_LOG_DIR)"/>
+    <arg name="log_dir"             value="$(env FERRET_LOG_DIR)/test"/>
 
     <!-- Topic Configuration -->
     <arg name="exec_start_topic"    value="/executive/start"/>
@@ -40,6 +40,34 @@
 
     <!-- Load in high level config file -->
     <rosparam command="load" file="$(find ferret_config)/params/ferret_config.yaml"/>
+
+    <!-- Launch data recording nodes -->
+    <!-- Launch hdr data recorder node -->
+    <node pkg="prog_rosbag" type="prog_record" name="hdr_recorder" output="screen" respawn="true">
+        <param name="topic_name_file"  value="$(find prog_rosbag)/config/hdr_topics.config"/>
+        <param name="data_directory"   value="/home/lawrence/Desktop"/>
+        <param name="file_prefix"      value="hdr_bag"/>
+        <param name="start_topic"      value="/record/hdr/start"/>
+        <param name="stop_topic"       value="/record/hdr/stop"/>
+    </node>
+
+    <!-- Launch scan data recorder node -->
+    <node pkg="prog_rosbag" type="prog_record" name="scan_recorder" output="screen" respawn="true">
+        <param name="topic_name_file"  value="$(find prog_rosbag)/config/scan_topics.config"/>
+        <param name="data_directory"   value="/home/lawrence/Desktop"/>
+        <param name="file_prefix"      value="scan_bag"/>
+        <param name="start_topic"      value="/record/scan/start"/>
+        <param name="stop_topic"       value="/record/scan/stop"/>
+    </node>
+
+    <!-- Launch background data recorder node -->
+    <node pkg="prog_rosbag" type="prog_record" name="background_recorder" output="screen" respawn="true">
+        <param name="topic_name_file"  value="$(find prog_rosbag)/config/background_topics.config"/>
+        <param name="data_directory"   value="/home/lawrence/Desktop"/>
+        <param name="file_prefix"      value="scan_bag"/>
+        <param name="start_topic"      value="/record/background/start"/>
+        <param name="stop_topic"       value="/record/background/stop"/>
+    </node>
 
     <!-- Launch pointgrey base camera driver -->
     <include file="$(find pointgrey_camera_driver)/launch/camera.launch"/>

@@ -79,27 +79,45 @@ int main(int argc, char **argv) {
     shutdown_request = 0;
 
     ros::Rate lrate(10);
-    std::ostringstream ss;
 
-    while( ros::ok() && !shutdown_request ) {
-        if( setPwm ) {
-            setPwm = false;
-            //ss.str("");
-            //ss.clear();
-            //ss << (int)pwmDutyCycle;
-            //data = ss.str();
-            //ROS_INFO("Writing - %s",data.c_str());
-            //write(fd,data.c_str(),strlen(data.c_str()));
-            if(  pwmDutyCycle == 0 ) {
-                system("echo -ne \"0\" > /dev/arduinoMicro");
-		ROS_INFO("Setting to 0");
-            } else {
-                system("echo -ne \"255\" > /dev/arduinoMicro");
-                ROS_INFO("Setting to 200");
-	    }
-        }
-        lrate.sleep();
-        ros::spinOnce();
+    // Define port settings struct
+    struct termios tty;
+    int fd, flag;
+
+    fd = open(port.c_str(), O_RDWR | O_NONBLOCK | O_NDELAY );
+
+    if( fd < 0 ) {
+        ROS_ERROR("Could not connect to led controller");
+        return -1;
+    } else {
+        // Setting other Port Stuff
+        tty.c_lflag = 0;        // Input modes
+        tty.c_oflag = 0;        // Output modes
+        tty.c_iflag = 0;        // Control modes
+        tty.c_cflag = 0;        // Local modes
+        tty.c_cc[VMIN]  = 0;    // Read a minimum of zero bytes at a time
+        tty.c_cc[VTIME] = 1;    // 0.1s timeout
+        tty.c_cflag = CS8 | CREAD | ~HUPCL;
+        cfsetospeed(&tty, B115200);
+
+        // Push settings to port
+        flag = tcsetattr(fd, TCSANOW, &tty);
+        fcntl(fd, F_SETFL, 0);
     }
 
+    char buf[8];
+
+    while( ros::ok() && !shutdown_request ) {
+        // Clear buffer
+        memset(buf,0,sizeof(buf));
+        // Write value to buffer
+        sprintf(buf,"%d\r\n",pwmDutyCycle);
+        // Write data buffer to serial port
+        write(fd,buf,sizeof(buf));
+
+        // Throttle loop
+        ros::spinOnce();
+        lrate.sleep();
+    }
+    return 0;
 }
