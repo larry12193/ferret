@@ -1,0 +1,30 @@
+<launch>
+
+  <arg name="frame_id_imu"   default="imu"/>
+  <arg name="frame_id_laser" default="laser"/>
+  <param name="use_sim_time" value="true"/>
+  <!-- Load in high level config file -->
+  <rosparam command="load" file="$(find ferret_config)/params/ferret_config.yaml"/>
+
+  <node pkg="scan_assembly" type="scan_assembly_node" name="assembly_node" output="screen"/>
+
+  <node pkg="rosbag" type="play" name="player" args="/home/lawrence/CMU/research/DOE_borehole/ferret_test_data/liberty_deploy_1/data/dataset_2017-12-18-17-08-03/scan_2017-12-18-17-39-04/scan_bag_with_rot.bag --clock -r 10">
+
+  </node>
+  <!-- Static transform from laser source to centerline of rotator -->
+  <node pkg="tf" type="static_transform_publisher" name="laser_to_centerline" args="0.02221 0 0 0 1.57079632679 0 centerline_at_laser_1 $(arg frame_id_laser) 10" />
+
+  <!-- Static transoform from laser@centerline to rotator base -->
+  <node pkg="tf" type="static_transform_publisher" name="laser_to_rotator" args="0 0 -0.32693 0 0 0 rotator_static_link_1 centerline_at_laser_1 10" />
+
+  <!-- Tranform from rotator_static_link to rotating linkage -->
+  <node pkg="ferret" type="ferret_tf_broadcaster" name="ferret_tf_broadcaster" output="screen">
+  </node>
+
+  <node type="laser_scan_assembler" pkg="laser_assembler"
+        name="my_assembler">
+    <param name="max_scans" type="int" value="910" />
+    <param name="fixed_frame" type="string" value="rotator_link_1" />
+  </node>
+
+</launch>

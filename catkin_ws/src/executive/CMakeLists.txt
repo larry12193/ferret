@@ -9,6 +9,7 @@ project(executive)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
+  rosbag
   roscpp
   rospy
   std_msgs
@@ -17,11 +18,13 @@ find_package(catkin REQUIRED COMPONENTS
   roboteq_driver
   cv_bridge
 )
+find_package(Boost REQUIRED COMPONENTS date_time regex program_options filesystem)
+find_package(BZip2 REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES executive
-  CATKIN_DEPENDS geometry_msgs roscpp rospy std_msgs tf roboteq_driver
+  LIBRARIES rosbag
+  CATKIN_DEPENDS rosbag_storage rosconsole geometry_msgs roscpp rospy std_msgs tf roboteq_driver
 #  DEPENDS system_lib
 )
 
@@ -30,12 +33,19 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
+add_library(cust_recorder src/p_recorder.cpp)
+target_link_libraries(cust_recorder ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+
+add_library(executive src/executive.cpp)
+target_link_libraries(executive cust_recorder)
+
 add_executable(${PROJECT_NAME}_node src/executive_node.cpp)
 add_executable(hdr_node src/hdr.cpp)
 
 # Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
-  ${catkin_LIBRARIES}
+                      executive
+                      ${catkin_LIBRARIES}
 )
 
 target_link_libraries(hdr_node

@@ -41,42 +41,14 @@
     <!-- Load in high level config file -->
     <rosparam command="load" file="$(find ferret_config)/params/ferret_config.yaml"/>
 
-    <!-- Launch data recording nodes -->
-    <!-- Launch hdr data recorder node -->
-    <node pkg="prog_rosbag" type="prog_record" name="hdr_recorder" output="screen" respawn="true">
-        <param name="topic_name_file"  value="$(find prog_rosbag)/config/hdr_topics.config"/>
-        <param name="data_directory"   value="/home/lawrence/Desktop"/>
-        <param name="file_prefix"      value="hdr_bag"/>
-        <param name="start_topic"      value="/record/hdr/start"/>
-        <param name="stop_topic"       value="/record/hdr/stop"/>
-    </node>
-
-    <!-- Launch scan data recorder node -->
-    <node pkg="prog_rosbag" type="prog_record" name="scan_recorder" output="screen" respawn="true">
-        <param name="topic_name_file"  value="$(find prog_rosbag)/config/scan_topics.config"/>
-        <param name="data_directory"   value="/home/lawrence/Desktop"/>
-        <param name="file_prefix"      value="scan_bag"/>
-        <param name="start_topic"      value="/record/scan/start"/>
-        <param name="stop_topic"       value="/record/scan/stop"/>
-    </node>
-
-    <!-- Launch background data recorder node -->
-    <node pkg="prog_rosbag" type="prog_record" name="background_recorder" output="screen" respawn="true">
-        <param name="topic_name_file"  value="$(find prog_rosbag)/config/background_topics.config"/>
-        <param name="data_directory"   value="/home/lawrence/Desktop"/>
-        <param name="file_prefix"      value="scan_bag"/>
-        <param name="start_topic"      value="/record/background/start"/>
-        <param name="stop_topic"       value="/record/background/stop"/>
-    </node>
-
     <!-- Launch pointgrey base camera driver -->
     <include file="$(find pointgrey_camera_driver)/launch/camera.launch"/>
 
     <!-- Launch LED control node -->
-    <!-- <node pkg="ferret" type="led_control_node" name="led_control_node" output="screen">
+    <node pkg="ferret" type="led_control_node" name="led_control_node" output="screen">
         <param name="pwm_set_topic"        value="$(arg pwm_set_topic)"/>
         <param name="port"                 value="$(arg arduino_port)"/>
-    </node> -->
+    </node>
 
     <!-- Launch exposure dynamic reconfigure client server -->
     <node pkg="executive" type="cam_config.py" name="cam_config" output="screen">
@@ -127,6 +99,10 @@
       <param name="exec_start_topic"   value="$(arg exec_start_topic)"/>
       <param name="status_topic"       value="$(arg status_topic)"/>
       <param name="pwm_set_topic"      value="$(arg pwm_set_topic)"/>
+
+      <param name="hdr_topic_config"   value="$(find executive)/config/hdr_topics.config"/>
+      <param name="scan_topic_config"  value="$(find executive)/config/scan_topics.config"/>
+      <param name="bg_topic_config"    value="$(find executive)/config/background_topics.config"/>
     </node>
 
     <!-- Launch HDR image node -->

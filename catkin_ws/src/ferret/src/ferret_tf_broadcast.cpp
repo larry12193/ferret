@@ -12,8 +12,10 @@
 
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf/transform_datatypes.h>
+#include <sensor_msgs/Imu.h>
 #include <roboteq_msgs/FerretRotator.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/Quaternion.h>
 #include <iostream>
 
 double cpr;
@@ -52,6 +54,34 @@ void rotatorCallback(const roboteq_msgs::FerretRotator::ConstPtr& msg){
     br.sendTransform(transformStamped);
 }
 
+void imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
+    if( msg->orientation_covariance[0] > 0.0 ) {
+        // Define transform and its broadcaster
+        static tf2_ros::TransformBroadcaster br;
+        geometry_msgs::TransformStamped transformStamped;
+
+        // Fill in data from message
+        transformStamped.header.stamp = msg->header.stamp;
+        transformStamped.header.frame_id = "world";
+        transformStamped.child_frame_id = "rotator_link";
+
+        // Set relative position to zero
+        transformStamped.transform.translation.x = 0.0;
+        transformStamped.transform.translation.y = 0.0;
+        transformStamped.transform.translation.z = 0.0;
+
+        geometry_msgs::Quaternion q;
+        tf::Quaternion qmg(msg->orientation.x,msg->orientation.y,msg->orientation.z,msg->orientation.w);
+        tf::Quaternion qtf(0,1,0,0);
+
+        // Fill in transform quaternion
+        tf::quaternionTFToMsg(qmg*qtf, transformStamped.transform.rotation);
+
+        // Send off transform
+        br.sendTransform(transformStamped);
+    }
+}
+
 int main(int argc, char** argv){
     ros::init(argc, argv, "ferret_tf_broadcaster");
     ros::NodeHandle n;
@@ -60,6 +90,7 @@ int main(int argc, char** argv){
     n.param<double>("rotator_cpr", cpr, 0);
 
     ros::Subscriber sub = n.subscribe("/roboteq/rotator", 10, &rotatorCallback);
+    ros::Subscriber isub = n.subscribe("/imu/data", 1, &imuCallback);
     ros::spin();
     return 0;
 };

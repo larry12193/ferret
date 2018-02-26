@@ -22,10 +22,15 @@ void setup() {
 }
 
 void loop() {
-
+    // Check if there is serial data
     if( Serial.available() > 0 ) {
-       dutyCycle = Serial.parseInt();
-       analogWrite(10,255-dutyCycle);
-       analogWrite(11,255-dutyCycle);
+        // Pull integer from buffer
+        dutyCycle = Serial.parseInt();
+        // Clear the serial buffer
+        Serial.read();
+        Serial.read();
+        // Write pwm to pins
+        analogWrite(10,255-dutyCycle);
+        analogWrite(11,255-dutyCycle);
     }
 }
