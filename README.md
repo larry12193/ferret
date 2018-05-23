@@ -78,3 +78,8 @@ To interface directly with Roboteq SDC2130 motor controller, install the Roborun
 + http://www.roboteq.com/index.php/support/downloads
 
 The script onboard performs a homing sequence on boot and then starts writing counter and endstop state data to the serial port that the higher level software uses to make decisions with. It will also accept a command to re-home the device if the executive is restarted without restarting the entire robot via a power cycle. The script can be found at catkin_ws/ferret_script.mbs, see for more details.
+
+## Known Issues
+1) The arduino that is used to control the LED lights and the IMU cannot currently be connected to the robot at the same time. There were issues observed with having the two serial devices connected, one on USB2 and the other on USB3. When one was written to or read from, the other would disconnect. Because of this, a seperate USB2 hub was used and solved the issue, however it got fried when I removed the plasic enclosure and heatshrunk it to fit inside the body. 
+
+2) The rotation of the end is reversed in the TF tree within ROS, this causes the point clouds to be inverted. I believe this is the reason, but there could be something deeper going on underneath. First thing to be addressed after hardware is connected.
